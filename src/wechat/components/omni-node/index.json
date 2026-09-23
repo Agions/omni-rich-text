@@ -1,0 +1,6 @@
+{
+  "component": true,
+  "usingComponents": {
+    "omni-node": "../omni-node/index"
+  }
+}

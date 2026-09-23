@@ -1,0 +1,32 @@
+.omni-text {
+  word-break: break-word;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.omni-link { display: inline; }
+
+.omni-image { width: 100%; display: block; }
+.omni-image-skeleton { width: 100%; }
+
+.omni-svg { max-width: 100%; vertical-align: middle; }
+
+.omni-video { width: 100%; }
+
+.omni-hr { height: 1rpx; }
+
+.omni-pre-scroll { width: 100%; overflow: scroll; box-sizing: border-box; }
+.omni-pre { box-sizing: border-box; }
+
+.omni-blockquote { box-sizing: border-box; }
+
+.omni-li { display: flex; flex-direction: row; align-items: flex-start; }
+.omni-li-bullet { flex-shrink: 0; }
+.omni-li-content { flex: 1; }
+
+.omni-table-scroll { width: 100%; overflow: scroll; box-sizing: border-box; }
+.omni-table { width: 100%; }
+.omni-tr { display: flex; flex-direction: row; }
+.omni-th, .omni-td { flex: 1; }
+
+.omni-element { box-sizing: border-box; max-width: 100%; }

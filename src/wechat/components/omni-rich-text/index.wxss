@@ -1,0 +1,8 @@
+.omni-rich-text-container {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  word-break: break-word;
+  user-select: none;
+  -webkit-user-select: none;
+}

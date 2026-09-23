@@ -1,0 +1,229 @@
+<!--
+  omni-node: Universal Rich Text Node Renderer for Native WeChat Mini Program
+  Recursion is achieved by self-referencing the omni-node component declared
+  in usingComponents inside index.json.
+
+  Node shape (from @universal-rt/core ASTNode):
+    node.type        - 'element' | 'text'
+    node.name        - tag name (lowercase), e.g. 'p', 'img', 'a'
+    node.text        - text content (type === 'text' only)
+    node.attrs       - attribute map { [key]: string }
+    node.styleStr    - pre-serialized inline style string
+    node.styleObj    - raw style object (not used in WXML)
+    node.children    - child ASTNode[]
+    node.extra       - platform-specific enrichment data
+      .wxIgnored     - boolean: skip this node entirely
+      .svgDataUri    - data URI for SVG nodes
+      .galleryIndex  - image index in gallery list
+      .bulletText    - pre-computed bullet label for <li>
+      .skeletonStyle - skeleton placeholder style string
+      .linkStyle     - anchor element style string
+-->
+
+<!-- ① Skip nodes marked as ignored (wx:voice, mp-miniprogram, etc.) -->
+<block wx:if="{{node.extra.wxIgnored}}"></block>
+
+<!-- ② Text Leaf Node -->
+<text
+  wx:elif="{{node.type === 'text'}}"
+  class="omni-text"
+  style="{{node.styleStr}}"
+>{{node.text}}</text>
+
+<!-- ③ SVG element → data URI <image> -->
+<image
+  wx:elif="{{node.name === 'svg'}}"
+  class="omni-svg"
+  src="{{node.extra.svgDataUri}}"
+  mode="widthFix"
+  style="{{node.styleStr}}"
+/>
+
+<!-- ④ Anchor link <a> -->
+<view
+  wx:elif="{{node.name === 'a'}}"
+  class="omni-link"
+  style="{{node.extra.linkStyle}}"
+  catch:tap="onLinkTap"
+  data-href="{{node.attrs.href}}"
+>
+  <omni-node
+    wx:for="{{node.children}}"
+    wx:key="id"
+    node="{{item}}"
+    theme="{{theme}}"
+    bind:linkTap="onChildLinkTap"
+    bind:imageTap="onChildImageTap"
+    bind:longPressText="onChildLongPressText"
+  />
+</view>
+
+<!-- ⑤ Image <img> with skeleton placeholder -->
+<view
+  wx:elif="{{node.name === 'img'}}"
+  class="omni-image-skeleton"
+  style="width:{{node.styleObj.width || '100%'}};{{node.extra.skeletonStyle}}"
+>
+  <image
+    class="omni-image"
+    src="{{node.attrs.src || node.attrs['data-src']}}"
+    mode="{{node.attrs.mode || 'widthFix'}}"
+    lazy-load="{{true}}"
+    style="width:{{node.styleObj.width || '100%'}};display:block;{{node.styleStr}}"
+    catch:tap="onImageTap"
+    data-src="{{node.attrs.src || node.attrs['data-src']}}"
+    data-gallery-index="{{node.extra.galleryIndex}}"
+  />
+</view>
+
+<!-- ⑥ Video <video> -->
+<video
+  wx:elif="{{node.name === 'video'}}"
+  class="omni-video"
+  src="{{node.attrs.src}}"
+  poster="{{node.attrs.poster}}"
+  controls="{{node.attrs.controls !== 'false'}}"
+  autoplay="{{node.attrs.autoplay === 'true'}}"
+  loop="{{node.attrs.loop === 'true'}}"
+  muted="{{node.attrs.muted === 'true'}}"
+  style="{{node.styleStr}}"
+/>
+
+<!-- ⑦ Horizontal Rule <hr> -->
+<view
+  wx:elif="{{node.name === 'hr'}}"
+  class="omni-hr"
+  style="{{theme.hrColor ? 'background-color:' + theme.hrColor + ';' : ''}}{{node.styleStr}}"
+/>
+
+<!-- ⑧ Preformatted Code <pre> with horizontal scroll -->
+<scroll-view
+  wx:elif="{{node.name === 'pre'}}"
+  class="omni-pre-scroll"
+  scroll-x="{{true}}"
+  style="{{theme.codeBgColor ? 'background-color:' + theme.codeBgColor + ';' : ''}}{{node.styleStr}}"
+>
+  <view class="omni-pre" style="{{theme.codeTextColor ? 'color:' + theme.codeTextColor + ';' : ''}}{{node.styleStr}}">
+    <omni-node
+      wx:for="{{node.children}}"
+      wx:key="id"
+      node="{{item}}"
+      theme="{{theme}}"
+      bind:linkTap="onChildLinkTap"
+      bind:imageTap="onChildImageTap"
+      bind:longPressText="onChildLongPressText"
+    />
+  </view>
+</scroll-view>
+
+<!-- ⑨ Blockquote <blockquote> -->
+<view
+  wx:elif="{{node.name === 'blockquote'}}"
+  class="omni-blockquote"
+  style="{{theme.blockquoteBorderColor ? 'border-left:6rpx solid ' + theme.blockquoteBorderColor + ';' : ''}}{{theme.blockquoteBgColor ? 'background-color:' + theme.blockquoteBgColor + ';' : ''}}{{theme.blockquoteTextColor ? 'color:' + theme.blockquoteTextColor + ';' : ''}}{{node.styleStr}}"
+>
+  <omni-node
+    wx:for="{{node.children}}"
+    wx:key="id"
+    node="{{item}}"
+    theme="{{theme}}"
+    bind:linkTap="onChildLinkTap"
+    bind:imageTap="onChildImageTap"
+    bind:longPressText="onChildLongPressText"
+  />
+</view>
+
+<!-- ⑩ Table <table> with horizontal scroll -->
+<scroll-view
+  wx:elif="{{node.name === 'table'}}"
+  class="omni-table-scroll"
+  scroll-x="{{true}}"
+>
+  <view class="omni-table">
+    <omni-node
+      wx:for="{{node.children}}"
+      wx:key="id"
+      node="{{item}}"
+      theme="{{theme}}"
+      bind:linkTap="onChildLinkTap"
+      bind:imageTap="onChildImageTap"
+      bind:longPressText="onChildLongPressText"
+    />
+  </view>
+</scroll-view>
+
+<!-- ⑪ Table Row <tr> -->
+<view
+  wx:elif="{{node.name === 'tr'}}"
+  class="omni-tr"
+>
+  <omni-node
+    wx:for="{{node.children}}"
+    wx:key="id"
+    node="{{item}}"
+    theme="{{theme}}"
+    bind:linkTap="onChildLinkTap"
+    bind:imageTap="onChildImageTap"
+    bind:longPressText="onChildLongPressText"
+  />
+</view>
+
+<!-- ⑫ Table Header <th> / Cell <td> -->
+<view
+  wx:elif="{{node.name === 'th' || node.name === 'td'}}"
+  class="{{node.name === 'th' ? 'omni-th' : 'omni-td'}}"
+  style="{{theme.tableBorderColor ? 'border:1rpx solid ' + theme.tableBorderColor + ';' : ''}}{{node.name === 'th' && theme.tableHeaderBgColor ? 'background-color:' + theme.tableHeaderBgColor + ';' : ''}}{{node.styleStr}}"
+>
+  <omni-node
+    wx:for="{{node.children}}"
+    wx:key="id"
+    node="{{item}}"
+    theme="{{theme}}"
+    bind:linkTap="onChildLinkTap"
+    bind:imageTap="onChildImageTap"
+    bind:longPressText="onChildLongPressText"
+  />
+</view>
+
+<!-- ⑬ List Item <li> -->
+<view
+  wx:elif="{{node.name === 'li'}}"
+  class="omni-li"
+  style="{{node.styleStr}}"
+>
+  <text class="omni-li-bullet" style="{{theme.bulletColor ? 'color:' + theme.bulletColor + ';' : ''}}">{{node.extra.bulletText}}</text>
+  <view class="omni-li-content">
+    <omni-node
+      wx:for="{{node.children}}"
+      wx:key="id"
+      node="{{item}}"
+      theme="{{theme}}"
+      bind:linkTap="onChildLinkTap"
+      bind:imageTap="onChildImageTap"
+      bind:longPressText="onChildLongPressText"
+    />
+  </view>
+</view>
+
+<!-- ⑭ Line Break <br> -->
+<text wx:elif="{{node.name === 'br'}}" class="omni-br">\n</text>
+
+<!-- ⑮ Generic block (div, p, section, ul, ol, h1-h6, span with block context, etc.) -->
+<view
+  wx:else
+  class="omni-element omni-{{node.name}}"
+  style="{{node.styleStr}}"
+  catch:tap="onNodeTap"
+>
+  <omni-node
+    wx:for="{{node.children}}"
+    wx:key="id"
+    node="{{item}}"
+    theme="{{theme}}"
+    index-in-list="{{index}}"
+    parent-tag="{{node.name}}"
+    bind:linkTap="onChildLinkTap"
+    bind:imageTap="onChildImageTap"
+    bind:longPressText="onChildLongPressText"
+  />
+</view>

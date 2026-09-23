@@ -1,0 +1,88 @@
+{
+  "name": "omni-rich-text",
+  "version": "0.0.1",
+  "description": "Cross-platform high-performance rich text rendering engine for Taro, UniApp, React Native, and WeChat Mini Program",
+  "author": "",
+  "license": "MIT",
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./src/core/index.ts",
+  "module": "./src/core/index.ts",
+  "types": "./src/core/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/core/index.ts",
+      "import": "./src/core/index.ts",
+      "require": "./src/core/index.ts",
+      "default": "./src/core/index.ts"
+    },
+    "./core": {
+      "types": "./src/core/index.ts",
+      "import": "./src/core/index.ts",
+      "require": "./src/core/index.ts",
+      "default": "./src/core/index.ts"
+    },
+    "./taro": {
+      "types": "./src/taro/index.ts",
+      "import": "./src/taro/index.ts",
+      "require": "./src/taro/index.ts",
+      "default": "./src/taro/index.ts"
+    },
+    "./uni": {
+      "types": "./src/uni/index.ts",
+      "import": "./src/uni/index.ts",
+      "require": "./src/uni/index.ts",
+      "default": "./src/uni/index.ts"
+    },
+    "./react-native": {
+      "types": "./src/react-native/index.ts",
+      "import": "./src/react-native/index.ts",
+      "require": "./src/react-native/index.ts",
+      "default": "./src/react-native/index.ts"
+    },
+    "./rn": {
+      "types": "./src/react-native/index.ts",
+      "import": "./src/react-native/index.ts",
+      "require": "./src/react-native/index.ts",
+      "default": "./src/react-native/index.ts"
+    },
+    "./wechat/*": "./src/wechat/*"
+  },
+  "miniprogram": "src/wechat",
+  "scripts": {
+    "test": "vitest run src/core/tests",
+    "test:watch": "vitest src/core/tests",
+    "type-check": "tsc --noEmit",
+    "demo": "npm run dev --prefix examples/playground"
+  },
+  "peerDependencies": {
+    "@tarojs/components": ">=3.0.0",
+    "@tarojs/taro": ">=3.0.0",
+    "react": ">=17.0.0",
+    "react-native": ">=0.70.0",
+    "vue": "^3.2.0"
+  },
+  "peerDependenciesMeta": {
+    "@tarojs/components": { "optional": true },
+    "@tarojs/taro": { "optional": true },
+    "react": { "optional": true },
+    "react-native": { "optional": true },
+    "vue": { "optional": true }
+  },
+  "devDependencies": {
+    "@tarojs/components": "3.6.40",
+    "@tarojs/taro": "3.6.40",
+    "@types/react": "^18.2.0",
+    "@types/react-native": "^0.73.0",
+    "react": "^18.3.1",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0",
+    "vue": "^3.4.0"
+  }
+}

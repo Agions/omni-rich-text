@@ -1,0 +1,11 @@
+<view class="omni-rich-text-container {{className}}" style="{{containerStyle}}">
+  <omni-node
+    wx:for="{{displayNodes}}"
+    wx:key="id"
+    node="{{item}}"
+    theme="{{theme}}"
+    bind:linkTap="onLinkTap"
+    bind:imageTap="onImageTap"
+    bind:longPressText="onLongPressText"
+  />
+</view>

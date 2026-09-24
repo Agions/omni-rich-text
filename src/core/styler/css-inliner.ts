@@ -273,8 +273,8 @@ export function formatFontSizeToRem(
   value: string,
   rootFontSize: number = WECHAT_REM_BASE,
   fontScale: number = 1,
-  baseFontSize: number | string = DEFAULT_BASE_FONT_SIZE,
-  contentBaseFontSize: number | string = DEFAULT_CONTENT_BASE_FONT_SIZE,
+  baseFontSize?: number | string,
+  contentBaseFontSize?: number | string,
   fontSizeResolver?: (sourcePx: number, rawValue: string) => string | number
 ): string {
   if (!value || typeof value !== 'string') return value;
@@ -328,20 +328,35 @@ export function formatFontSizeToRem(
   if (unit === 'rem' || unit === 'em' || unit === '%') {
     const val = num * effectiveScale;
     finalRem = `${parseFloat(val.toFixed(4))}${unit}`;
-  } else {
-    // Dynamic base font size accumulation:
+  } else if (
+    baseFontSize !== undefined &&
+    baseFontSize !== null &&
+    baseFontSize !== ''
+  ) {
+    // Only apply delta accumulation if the caller explicitly passed baseFontSize
     const targetBase =
       typeof baseFontSize === 'number'
         ? baseFontSize
-        : parseFloat(String(baseFontSize)) || DEFAULT_BASE_FONT_SIZE;
+        : parseFloat(String(baseFontSize));
     const contentBase =
       typeof contentBaseFontSize === 'number'
         ? contentBaseFontSize
-        : parseFloat(String(contentBaseFontSize)) || DEFAULT_CONTENT_BASE_FONT_SIZE;
+        : (contentBaseFontSize ? parseFloat(String(contentBaseFontSize)) : DEFAULT_CONTENT_BASE_FONT_SIZE);
 
-    const delta = sourcePx - contentBase;
-    const mappedPx = Math.max(8, targetBase + delta);
-    const scaledPx = mappedPx * effectiveScale;
+    if (!isNaN(targetBase) && !isNaN(contentBase)) {
+      const delta = sourcePx - contentBase;
+      const mappedPx = Math.max(8, targetBase + delta);
+      const scaledPx = mappedPx * effectiveScale;
+      const remVal = scaledPx / baseRoot;
+      finalRem = `${parseFloat(remVal.toFixed(4))}rem`;
+    } else {
+      const scaledPx = sourcePx * effectiveScale;
+      const remVal = scaledPx / baseRoot;
+      finalRem = `${parseFloat(remVal.toFixed(4))}rem`;
+    }
+  } else {
+    // Standard 1:1 conversion (preserves content author font size, no 0.5 halving, no -7px reduction)
+    const scaledPx = sourcePx * effectiveScale;
     const remVal = scaledPx / baseRoot;
     finalRem = `${parseFloat(remVal.toFixed(4))}rem`;
   }
@@ -395,8 +410,8 @@ export function resolveNodeStyles(
   fontScale: number = 1,
   rootFontSize: number = WECHAT_REM_BASE,
   remScale: number = DEFAULT_REM_SCALE,
-  baseFontSize: number | string = DEFAULT_BASE_FONT_SIZE,
-  contentBaseFontSize: number | string = DEFAULT_CONTENT_BASE_FONT_SIZE,
+  baseFontSize?: number | string,
+  contentBaseFontSize?: number | string,
   fontSizeResolver?: (sourcePx: number, rawValue: string) => string | number
 ): {
   styleStr: string;

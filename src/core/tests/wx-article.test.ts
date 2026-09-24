@@ -23,8 +23,8 @@ describe('WeChat Official Account Article Parsing & Fidelity', () => {
 
     const h1 = section.children?.[0];
     expect(h1?.name).toBe('h1');
-    // Font size uses baseFontSize delta: 22px (=contentBase) -> delta=0 -> mappedPx=15 -> 15/18.75 = 0.8rem
-    expect(h1?.styleObj['font-size']).toBe('0.8rem');
+    // Font size preserves content 1:1: 22px / 18.75 = 1.1733rem (44rpx = 22px logical pixels)
+    expect(h1?.styleObj['font-size']).toBe('1.1733rem');
     expect(h1?.styleObj['font-weight']).toBe('bold');
 
     const p = section.children?.[1];
@@ -232,9 +232,9 @@ describe('WeChat Official Account Article Parsing & Fidelity', () => {
     const col1 = section.children?.[0];
     const col2 = section.children?.[1];
 
-    // flex: 0 0 auto should be transformed to flex: 0 1 auto so items can shrink on mobile
-    expect(col1?.styleObj['flex']).toBe('0 1 auto');
-    expect(col2?.styleObj['flex']).toBe('0 1 auto');
+    // flex: 0 0 auto should be transformed to proportional flex: 1 1 0% to eliminate whitespace
+    expect(col1?.styleObj['flex']).toBe('1 1 0%');
+    expect(col2?.styleObj['flex']).toBe('1 1 0%');
 
     // Child elements in flex container should have min-width: 0 and max-width: 100%
     expect(col1?.styleObj['min-width']).toBe('0');
@@ -287,5 +287,44 @@ describe('WeChat Official Account Article Parsing & Fidelity', () => {
     expect(img?.name).toBe('img');
     expect(img?.attrs.src).toBe('https://example.com/banner.png');
     expect(result.galleryList).toContain('https://example.com/banner.png');
+  });
+
+  // Scenario 10: Inline Icon / Emoji Sticker Preservation
+  it('should identify small inline icons and stickers without forcing 100% full width', () => {
+    const html = `
+      <p>
+        这是一条包含表情的文案
+        <img src="https://example.com/emoji.png" width="20" height="20" class="wx_emoji" />
+      </p>
+    `;
+
+    const result = parseRichContent(html, { mode: 'wechat' });
+    const p = result.ast[0];
+    const icon = p.children?.[1];
+
+    expect(icon?.name).toBe('img');
+    expect(icon?.extra?.isIcon).toBe(true);
+    expect(icon?.styleObj['display']).toBe('inline-block');
+    expect(icon?.styleObj['width']).not.toBe('100%');
+  });
+
+  // Scenario 11: Non-flex Multi-Image Row Proportion
+  it('should allocate proportional percentage width for multiple images in a non-flex container', () => {
+    const html = `
+      <div>
+        <img src="https://example.com/pic1.jpg" />
+        <img src="https://example.com/pic2.jpg" />
+      </div>
+    `;
+
+    const result = parseRichContent(html, { mode: 'wechat' });
+    const div = result.ast[0];
+    expect(div.extra?.isMultiImage).toBe(true);
+
+    const img1 = div.children?.[0];
+    const img2 = div.children?.[1];
+
+    expect(img1?.styleObj['width']).toBe('50%');
+    expect(img2?.styleObj['width']).toBe('50%');
   });
 });

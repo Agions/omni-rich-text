@@ -60,7 +60,31 @@
     />
   </view>
 
-  <!-- 5. Image <img> with skeleton & error fallback -->
+  <!-- 5. Image <img> (Icon vs Regular Image) -->
+  <view
+    v-else-if="node.name === 'img' && node.extra?.isIcon"
+    class="omni-image-icon-wrap"
+    :style="{
+      display: 'inline-block',
+      verticalAlign: 'middle',
+      width: node.styleObj?.width || node.attrs?.width || '20px',
+      height: node.styleObj?.height || node.attrs?.height || '20px',
+      margin: node.styleObj?.margin
+    }"
+    @tap.stop="handleImageTap(node)"
+  >
+    <image
+      class="omni-image-icon"
+      :src="node.attrs.src || node.attrs['data-src']"
+      mode="aspectFit"
+      :style="{
+        width: node.styleObj?.width || node.attrs?.width || '20px',
+        height: node.styleObj?.height || node.attrs?.height || '20px',
+        display: 'inline-block',
+        verticalAlign: 'middle'
+      }"
+    />
+  </view>
   <view
     v-else-if="node.name === 'img'"
     class="omni-image-wrap"

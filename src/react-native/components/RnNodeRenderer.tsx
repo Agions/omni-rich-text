@@ -76,6 +76,21 @@ const OmniImage: React.FC<OmniImageProps> = ({
     }
   };
 
+  if (node.extra?.isIcon) {
+    const rawW = node.styleObj?.width || node.attrs.width;
+    const rawH = node.styleObj?.height || node.attrs.height;
+    const w = rawW ? parseInt(String(rawW), 10) || 20 : 20;
+    const h = rawH ? parseInt(String(rawH), 10) || 20 : 20;
+    return (
+      <Pressable onPress={handlePress} style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Image
+          source={{ uri: src }}
+          style={{ width: w, height: h, resizeMode: 'contain' }}
+        />
+      </Pressable>
+    );
+  }
+
   return (
     <Pressable onPress={handlePress}>
       <View

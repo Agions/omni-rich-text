@@ -40,6 +40,8 @@ export interface ASTNode {
     wxIgnored?: boolean;
     /** Whether node or container contains multiple images in a single row/flow */
     isMultiImage?: boolean;
+    /** Whether node is an inline icon or emoji sticker (<= 40px) */
+    isIcon?: boolean;
     /** Custom component tag marker */
     isCustom?: boolean;
   };

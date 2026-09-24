@@ -251,8 +251,8 @@ function isInsidePre(stack: ASTNode[]): boolean {
         options.fontScale ?? 1,
         options.rootFontSize ?? WECHAT_REM_BASE,
         options.remScale ?? DEFAULT_REM_SCALE,
-        options.baseFontSize ?? options.fontSize ?? DEFAULT_BASE_FONT_SIZE,
-        options.contentBaseFontSize ?? DEFAULT_CONTENT_BASE_FONT_SIZE,
+        options.baseFontSize,
+        options.contentBaseFontSize,
         options.fontSizeResolver
       );
 
@@ -321,6 +321,36 @@ function isInsidePre(stack: ASTNode[]): boolean {
 }
 
 /**
+ * Helper to identify if an <img> represents a small inline icon or emoji sticker (<= 40px)
+ */
+function isIconImage(node: ASTNode): boolean {
+  if (node.name !== 'img') return false;
+  const rawClass = node.attrs?.class || '';
+  if (/wx_emoji|emoji|icon/i.test(rawClass)) return true;
+
+  const rawW = node.attrs?.width || node.styleObj?.width;
+  const rawH = node.attrs?.height || node.styleObj?.height;
+
+  let wNum: number | undefined;
+  let hNum: number | undefined;
+
+  if (rawW) {
+    const m = String(rawW).match(/^([\d.]+)(px)?$/i);
+    if (m) wNum = parseFloat(m[1]);
+  }
+  if (rawH) {
+    const m = String(rawH).match(/^([\d.]+)(px)?$/i);
+    if (m) hNum = parseFloat(m[1]);
+  }
+
+  // Explicit small icons / stickers <= 40px
+  if ((wNum !== undefined && wNum > 0 && wNum <= 40) || (hNum !== undefined && hNum > 0 && hNum <= 40)) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Recursively post-processes and optimizes layout for flex containers,
  * multi-image rows, and mobile responsive adaptation.
  */
@@ -342,6 +372,11 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
       // 1. Flex container optimization for mobile:
       // Prevent flex children from overflowing screen by setting min-width: 0 and allowing flex items to shrink
       if (isFlex && !isColumn) {
+        const elemChildren = node.children.filter((c) => c.type === 'element');
+        const hasImg = elemChildren.some(
+          (c) => c.name === 'img' || (c.children && c.children.some((cc) => cc.name === 'img'))
+        );
+
         for (const child of node.children) {
           if (child.type !== 'element') continue;
           child.styleObj = child.styleObj || {};
@@ -349,40 +384,93 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
           child.styleObj['max-width'] = child.styleObj['max-width'] || '100%';
           child.styleObj['box-sizing'] = child.styleObj['box-sizing'] || 'border-box';
 
-          // In WeChat articles, desktop editors often output `flex: 0 0 auto` for columns.
-          // On mobile, flex: 0 0 auto has flex-shrink: 0 which prevents columns from shrinking,
-          // causing the right-hand column to overflow the screen. We convert it to allow shrinking.
-          if (child.styleObj.flex === '0 0 auto') {
+          // In WeChat articles, desktop editors often output `flex: 0 0 auto` with 333.5px widths.
+          // On mobile, flex: 0 0 auto prevents columns from shrinking, and halving leaves a 41.5px blank.
+          // Convert multi-column image wrappers to proportional flex items (flex: 1 1 0%)
+          if (elemChildren.length > 1 && hasImg) {
+            child.styleObj['flex'] = '1 1 0%';
+            child.styleObj['flex-shrink'] = '1';
+          } else if (child.styleObj.flex === '0 0 auto') {
             child.styleObj.flex = '0 1 auto';
             child.styleObj['flex-shrink'] = '1';
           }
 
-          // If direct child is an img, make it flex-share the row
+          // If direct child is an img
           if (child.name === 'img') {
-            child.styleObj.flex = child.styleObj.flex || '1 1 0%';
-            child.styleObj['max-width'] = '100%';
+            if (isIconImage(child)) {
+              child.extra = child.extra || {};
+              child.extra.isIcon = true;
+              child.styleObj['display'] = 'inline-block';
+              child.styleObj['vertical-align'] = 'middle';
+            } else {
+              child.extra = child.extra || {};
+              child.extra.isMultiImage = elemChildren.length > 1;
+              child.styleObj['flex'] = child.styleObj['flex'] || '1 1 0%';
+              child.styleObj['width'] = '100%';
+              child.styleObj['max-width'] = '100%';
+              child.styleObj['display'] = 'block';
+            }
           }
+
+          // If child is a wrapper containing an img
+          if (child.children && child.children.length > 0) {
+            for (const sub of child.children) {
+              if (sub.name === 'img') {
+                if (isIconImage(sub)) {
+                  sub.extra = sub.extra || {};
+                  sub.extra.isIcon = true;
+                } else {
+                  sub.extra = sub.extra || {};
+                  sub.extra.isMultiImage = elemChildren.length > 1;
+                  sub.styleObj = sub.styleObj || {};
+                  sub.styleObj['width'] = '100%';
+                  sub.styleObj['max-width'] = '100%';
+                  sub.styleObj['display'] = 'block';
+                  sub.styleStr = stringifyStyleObject(sub.styleObj);
+                }
+              }
+            }
+          }
+
           child.styleStr = stringifyStyleObject(child.styleObj);
         }
       }
 
-      // 2. Multi-image row optimization (e.g. multiple images in a p / div / section):
-      const imgChildren = node.children.filter((c) => c.name === 'img');
+      // 2. Multi-image row optimization (e.g. multiple images in a non-flex p / div / section):
+      const imgChildren = node.children.filter((c) => c.name === 'img' && !isIconImage(c));
       if (imgChildren.length >= 2) {
         node.extra = node.extra || {};
         node.extra.isMultiImage = true;
+        const count = imgChildren.length;
+        const percentWidth = `${parseFloat((100 / count).toFixed(2))}%`;
         for (const img of imgChildren) {
           img.extra = img.extra || {};
           img.extra.isMultiImage = true;
           img.styleObj = img.styleObj || {};
-          // Ensure it does not force 100% width if sibling images exist
           if (!isFlex) {
-            img.styleObj['display'] = img.styleObj['display'] || 'inline-block';
-            img.styleObj['vertical-align'] = img.styleObj['vertical-align'] || 'top';
-            img.styleObj['box-sizing'] = img.styleObj['box-sizing'] || 'border-box';
-            img.styleObj['max-width'] = img.styleObj['max-width'] || '100%';
+            img.styleObj['display'] = 'inline-block';
+            img.styleObj['vertical-align'] = 'top';
+            img.styleObj['box-sizing'] = 'border-box';
+            img.styleObj['width'] = percentWidth;
+            img.styleObj['max-width'] = '100%';
           }
           img.styleStr = stringifyStyleObject(img.styleObj);
+        }
+      }
+
+      // 3. Mark standalone icons
+      for (const child of node.children) {
+        if (child.name === 'img' && isIconImage(child)) {
+          child.extra = child.extra || {};
+          child.extra.isIcon = true;
+          child.styleObj = child.styleObj || {};
+          child.styleObj['display'] = 'inline-block';
+          child.styleObj['vertical-align'] = 'middle';
+          if (child.styleObj['width'] === '100%') {
+            const rawW = child.attrs?.width;
+            child.styleObj['width'] = rawW ? (rawW.endsWith('px') ? rawW : `${rawW}px`) : 'auto';
+          }
+          child.styleStr = stringifyStyleObject(child.styleObj);
         }
       }
     }

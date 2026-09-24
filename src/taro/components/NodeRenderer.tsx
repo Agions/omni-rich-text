@@ -122,6 +122,37 @@ const OmniImage: React.FC<{
     }
   };
 
+  if (node.extra?.isIcon) {
+    const iconW = node.styleObj?.width || node.attrs.width || '20px';
+    const iconH = node.styleObj?.height || node.attrs.height || '20px';
+    return (
+      <View
+        className="omni-image-icon-wrap"
+        style={toTaroStyle({
+          display: 'inline-block',
+          verticalAlign: 'middle',
+          width: iconW,
+          height: iconH,
+          cursor: effectiveHref ? 'pointer' : undefined,
+          margin: node.styleObj?.margin
+        })}
+        onClick={handleTap}
+      >
+        <Image
+          className="omni-image-icon"
+          src={src}
+          mode="aspectFit"
+          style={toTaroStyle({
+            width: iconW,
+            height: iconH,
+            display: 'inline-block',
+            verticalAlign: 'middle'
+          })}
+        />
+      </View>
+    );
+  }
+
   return (
     <View
       className="omni-image-wrap"

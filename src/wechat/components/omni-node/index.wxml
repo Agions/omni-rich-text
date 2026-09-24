@@ -60,7 +60,24 @@
   />
 </view>
 
-<!-- ⑤ Image <img> with skeleton placeholder -->
+<!-- ⑤-A Icon / Emoji Image -->
+<view
+  wx:elif="{{node.name === 'img' && node.extra.isIcon}}"
+  class="omni-image-icon-wrap"
+  style="display:inline-block;vertical-align:middle;width:{{node.styleObj.width || node.attrs.width || '20px'}};height:{{node.styleObj.height || node.attrs.height || '20px'}};"
+  catch:tap="onImageTap"
+  data-src="{{node.attrs.src || node.attrs['data-src']}}"
+  data-gallery-index="{{node.extra.galleryIndex}}"
+>
+  <image
+    class="omni-image-icon"
+    src="{{node.attrs.src || node.attrs['data-src']}}"
+    mode="aspectFit"
+    style="width:{{node.styleObj.width || node.attrs.width || '20px'}};height:{{node.styleObj.height || node.attrs.height || '20px'}};display:inline-block;vertical-align:middle;"
+  />
+</view>
+
+<!-- ⑤-B Regular Image <img> with skeleton placeholder -->
 <view
   wx:elif="{{node.name === 'img'}}"
   class="omni-image-skeleton"

@@ -46,39 +46,55 @@ describe('WeChat Mini Program REM Calculation and Halving Rules', () => {
     expect(formatDimensionToRem('opacity', '0.8')).toBe('0.8');
   });
 
-  it('should calculate font-size using baseFontSize delta accumulation (baseFontSize=15, contentBaseFontSize=22)', () => {
-    // Default: baseFontSize=15, contentBaseFontSize=22, fontScale=1, rootFontSize=18.75
+  it('should calculate font-size using baseFontSize delta accumulation when explicitly configured (baseFontSize=15, contentBaseFontSize=22)', () => {
+    // When explicitly configured: baseFontSize=15, contentBaseFontSize=22, fontScale=1, rootFontSize=18.75
     // Formula: mappedPx = baseFontSize + (sourcePx - contentBaseFontSize)
     //          rem = mappedPx / rootFontSize
+    const root = WECHAT_REM_BASE;
 
     // 22px -> delta=0 -> mappedPx=15 -> 15/18.75 = 0.8rem (content base = display base)
-    expect(formatFontSizeToRem('22px')).toBe('0.8rem');
+    expect(formatFontSizeToRem('22px', root, 1, 15, 22)).toBe('0.8rem');
 
     // 23px -> delta=1 -> mappedPx=16 -> 16/18.75 = 0.8533rem
-    expect(formatFontSizeToRem('23px')).toBe('0.8533rem');
+    expect(formatFontSizeToRem('23px', root, 1, 15, 22)).toBe('0.8533rem');
 
     // 24px -> delta=2 -> mappedPx=17 -> 17/18.75 = 0.9067rem
-    expect(formatFontSizeToRem('24px')).toBe('0.9067rem');
+    expect(formatFontSizeToRem('24px', root, 1, 15, 22)).toBe('0.9067rem');
 
     // 26px -> delta=4 -> mappedPx=19 -> 19/18.75 = 1.0133rem
-    expect(formatFontSizeToRem('26px')).toBe('1.0133rem');
+    expect(formatFontSizeToRem('26px', root, 1, 15, 22)).toBe('1.0133rem');
 
     // 20px -> delta=-2 -> mappedPx=13 -> 13/18.75 = 0.6933rem
-    expect(formatFontSizeToRem('20px')).toBe('0.6933rem');
+    expect(formatFontSizeToRem('20px', root, 1, 15, 22)).toBe('0.6933rem');
 
     // 32px -> delta=10 -> mappedPx=25 -> 25/18.75 = 1.3333rem
-    expect(formatFontSizeToRem('32px')).toBe('1.3333rem');
+    expect(formatFontSizeToRem('32px', root, 1, 15, 22)).toBe('1.3333rem');
 
     // 37.5rpx -> rpx to px: 37.5/2=18.75px -> delta=-3.25 -> mappedPx=11.75 -> 11.75/18.75 = 0.6267rem
-    expect(formatFontSizeToRem('37.5rpx')).toBe('0.6267rem');
+    expect(formatFontSizeToRem('37.5rpx', root, 1, 15, 22)).toBe('0.6267rem');
 
     // rem / em / % preserved (fontScale=1 so unchanged)
-    expect(formatFontSizeToRem('1.5rem')).toBe('1.5rem');
-    expect(formatFontSizeToRem('2em')).toBe('2em');
-    expect(formatFontSizeToRem('120%')).toBe('120%');
+    expect(formatFontSizeToRem('1.5rem', root, 1, 15, 22)).toBe('1.5rem');
+    expect(formatFontSizeToRem('2em', root, 1, 15, 22)).toBe('2em');
+    expect(formatFontSizeToRem('120%', root, 1, 15, 22)).toBe('120%');
 
     // !important preservation: 200px -> delta=178 -> mappedPx=193 -> 193/18.75 = 10.2933rem
-    expect(formatFontSizeToRem('200px !important')).toBe('10.2933rem !important');
+    expect(formatFontSizeToRem('200px !important', root, 1, 15, 22)).toBe('10.2933rem !important');
+  });
+
+  it('should preserve font-size 1:1 by default without halving or arbitrary shift', () => {
+    // Default 1:1 font preservation: 16px / 18.75 = 0.8533rem (32rpx = 16px logical screen pixels)
+    expect(formatFontSizeToRem('16px')).toBe('0.8533rem');
+    expect(formatFontSizeToRem('14px')).toBe('0.7467rem');
+    expect(formatFontSizeToRem('22px')).toBe('1.1733rem');
+
+    // With fontScale = 1.2
+    expect(formatFontSizeToRem('16px', WECHAT_REM_BASE, 1.2)).toBe('1.024rem');
+
+    // With custom fontSizeResolver function
+    expect(
+      formatFontSizeToRem('16px', WECHAT_REM_BASE, 1, undefined, undefined, (sourcePx) => `${sourcePx + 2}px`)
+    ).toBe('18px');
   });
 
   it('should respect custom baseFontSize and contentBaseFontSize in formatFontSizeToRem', () => {
@@ -90,9 +106,9 @@ describe('WeChat Mini Program REM Calculation and Halving Rules', () => {
     // 26px -> delta=2 -> mappedPx=14 -> 14/18.75 = 0.7467rem
     expect(formatFontSizeToRem('26px', root, 1, 12, 24)).toBe('0.7467rem');
 
-    // With fontScale=2: mappedPx * 2 / 18.75
-    // 22px (defaults) -> delta=0 -> mappedPx=15, scaled=30 -> 30/18.75 = 1.6rem
-    expect(formatFontSizeToRem('22px', root, 2)).toBe('1.6rem');
+    // With fontScale=2 and baseFontSize=15, contentBaseFontSize=22: mappedPx * 2 / 18.75
+    // 22px -> delta=0 -> mappedPx=15, scaled=30 -> 30/18.75 = 1.6rem
+    expect(formatFontSizeToRem('22px', root, 2, 15, 22)).toBe('1.6rem');
   });
 
   it('should calculate rem in parseRichContent for both width and typography', () => {
@@ -115,38 +131,37 @@ describe('WeChat Mini Program REM Calculation and Halving Rules', () => {
     // div padding: 10px 0px -> 0.2667rem 0
     expect(div.styleObj['padding']).toBe('0.2667rem 0');
 
-    // font-size: 32px -> delta=10 -> mappedPx=25 -> 25/18.75 = 1.3333rem
-    expect(h2?.styleObj['font-size']).toBe('1.3333rem');
+    // font-size: 32px 1:1 -> 32 / 18.75 = 1.7067rem
+    expect(h2?.styleObj['font-size']).toBe('1.7067rem');
     // line-height: 48px (dimension, not font-size) -> (48 * 0.5) / 18.75 = 1.28rem
     expect(h2?.styleObj['line-height']).toBe('1.28rem');
-    // font-size: 28px -> delta=6 -> mappedPx=21 -> 21/18.75 = 1.12rem
-    expect(p?.styleObj['font-size']).toBe('1.12rem');
-    // font-size: 37.5rpx -> 18.75px -> delta=-3.25 -> mappedPx=11.75 -> 11.75/18.75 = 0.6267rem
-    expect(span?.styleObj['font-size']).toBe('0.6267rem');
+    // font-size: 28px 1:1 -> 28 / 18.75 = 1.4933rem
+    expect(p?.styleObj['font-size']).toBe('1.4933rem');
+    // font-size: 37.5rpx -> 18.75px 1:1 -> 18.75 / 18.75 = 1rem
+    expect(span?.styleObj['font-size']).toBe('1rem');
   });
 
   it('should support custom remScale (e.g. remScale = 1 for 1:1 conversion without halving)', () => {
     const html = `<div style="width: 200px; font-size: 32px;">自定义remScale测试</div>`;
 
     // remScale = 1 (no halving for dimensions: 200 / 18.75 = 10.6667rem)
-    // font-size uses baseFontSize delta (NOT remScale): 32px -> delta=10 -> mappedPx=25 -> 25/18.75 = 1.3333rem
+    // font-size preserves 1:1 (32 / 18.75 = 1.7067rem)
     const result1 = parseRichContent(html, { remScale: 1 });
     expect(result1.ast[0].styleObj['width']).toBe('10.6667rem');
-    expect(result1.ast[0].styleObj['font-size']).toBe('1.3333rem');
+    expect(result1.ast[0].styleObj['font-size']).toBe('1.7067rem');
 
     // Default remScale = 0.5 (halved for dimensions)
     const resultDefault = parseRichContent(html);
     expect(resultDefault.ast[0].styleObj['width']).toBe('5.3333rem');
-    expect(resultDefault.ast[0].styleObj['font-size']).toBe('1.3333rem');
+    expect(resultDefault.ast[0].styleObj['font-size']).toBe('1.7067rem');
   });
 
   it('should support custom rootFontSize for rem base', () => {
     const html = `<p style="font-size: 28px;">自定义基准字号</p>`;
 
-    // With rootFontSize=14, remScale=1:
-    // font-size: 28px -> delta=6 -> mappedPx=21 -> 21/14 = 1.5rem
-    const result = parseRichContent(html, { rootFontSize: 14, remScale: 1 });
-    expect(result.ast[0].styleObj['font-size']).toBe('1.5rem');
+    // With rootFontSize=14: 28 / 14 = 2rem
+    const result = parseRichContent(html, { rootFontSize: 14 });
+    expect(result.ast[0].styleObj['font-size']).toBe('2rem');
   });
 
   it('should support custom baseFontSize and contentBaseFontSize in parseRichContent', () => {
@@ -193,8 +208,8 @@ describe('WeChat Mini Program REM Calculation and Halving Rules', () => {
     const img = div.children?.[1];
 
     expect(div.styleObj['width']).toBe('5.3333rem');
-    // font-size: 32px -> delta=10 -> mappedPx=25 -> 25/18.75 = 1.3333rem
-    expect(p?.styleObj['font-size']).toBe('1.3333rem');
+    // font-size: 32px 1:1 -> 32 / 18.75 = 1.7067rem
+    expect(p?.styleObj['font-size']).toBe('1.7067rem');
     expect(img?.styleObj['width']).toBe('100%');
   });
 });

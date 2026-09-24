@@ -1,45 +1,50 @@
 # Omni Rich Text (全能跨端富文本渲染引擎)
 
-一款专为跨端生态打造的高性能富文本渲染库。**单包发布、无作用域**，通过子路径按需引入各端适配层：原生兼容 **Taro (React)**、**UniApp (Vue3)**、**React Native** 与 **微信原生小程序**。
+<p align="center">
+  <strong>一款专为现代跨端生态打造的高性能、高保真富文本渲染引擎</strong><br>
+  原生支持 <b>Taro (React)</b>、<b>UniApp (Vue 3)</b>、<b>React Native</b> 与 <b>微信原生小程序</b>
+</p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Test](https://img.shields.io/badge/tests-30%20passed-brightgreen.svg)]()
+<p align="center">
+  <a href="https://www.npmjs.com/package/omni-rich-text"><img src="https://img.shields.io/npm/v/omni-rich-text.svg?color=cb3837" alt="npm version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/tests-41%20passed-brightgreen.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/build-tsup%20ESM%20%2B%20CJS%20%2B%20DTS-blue.svg" alt="Build Status">
+  <a href="https://github.com/Agions/omni-rich-text"><img src="https://img.shields.io/github/stars/Agions/omni-rich-text?style=social" alt="GitHub stars"></a>
+</p>
 
 ---
 
-## 🌟 核心特性
+## 🌟 核心特性与架构亮点
 
-- **纯 TS 跨端内核**：`omni-rich-text/core` 无任何 DOM 与平台 API 依赖，解析极速且支持 SSR。
-- **图片标签默认 100% 宽度自适应**：富文本中的 `<img>` 标签默认铺满容器宽度（`width: 100%`），同时完整支持作者自定义内联 `width` / `style` 覆盖。
-- **字体全面采用 rem 响应式计算（无 rpx，不写死减少一半）**：
-  - **rem 相对单位计算**：富文本内所有字号统一计算为 `rem`（默认基准 `1rem = 16px`），杜绝各端框架自动转 `rpx` 造成的排版变形失真；若原始内容包含 `rpx` 单位，也会自动换算为精确的 `rem`。
-  - **不写死减少一半**：默认 `fontScale: 1` 维持 1:1 真实保真尺寸，杜绝硬编码折半。
-  - **支持基准与缩放自由定制**：支持配置 `fontSize`（如 `'1rem'`、`'0.875rem'`、`16`）、`rootFontSize`（默认 `16`）与 `fontScale` 比例系数。
-- **全面纯净模式（Zero-Default-Styles）**：组件不设任何强制性预置装饰样式（无强制内外边距、无预置背景与边框），样式 100% 完全由富文本内容本身（内联 `style` 与 `<style>` 规则）驱动，保证各端高度纯净与设计保真。
-- **全节点事件接管**：彻底取代原生 `<rich-text>`，所有节点使用平台标准基元组件（View/Text/Image/Video）递归渲染，100% 支持点击拦截、长按选中与样式定制。
-- **现代化子路径架构**：单个 npm 包（`omni-rich-text`），告别多包 monorepo 复杂版本管理，按需引入对应端的子路径。
-- **Smart Link 智能路由调度**：
-  - 自动识别页面内部路由（`navigateTo`）与 TabBar 路由（`switchTab`）。
-  - 外部链接支持无缝承载至自定义 Webview 页面，或在小程序端自动唤起“复制链接至剪贴板”的优雅降级。
-- **Image Context 画廊与骨架屏**：
-  - 自动按文章顺序提取全文图片构建画廊列表（Gallery）。
-  - 点击图片自动调起端原生 `previewImage`，抹平微信与支付宝（索引/参数命名）差异；H5 端内置高仿原生的大图滑动查看器（Lightbox）。
-  - 内置图片宽高比（data-ratio）占位骨架屏与渐入淡入动画（Zero CLS）。
-- **微信公众号高保真还原**：
-  - 内置 `<style>` 标签选择器提取与内联。
-  - SVG 图标自动序列化为 Data URI 图片呈现。
-  - 适配微信公众号特有排版与卡片布局，自动过滤 mpvoice 等不支持标签。
-- **灵活主题系统 (ThemeConfig)**：
-  - 支持按需覆盖超链接颜色、引用块边框/背景/文字、代码块背景/文字、表格边框/表头底色、列表圆点序号、分割线颜色及图片骨架底色。
-- **声明式自定义组件 (Custom Components)**：
-  - 支持将特定标签（如 `<product-card>`、`<coupon-box>`）直接映射为您自定义编写的业务组件。
-- **性能与安全保障**：
-  - 内置基于有限状态机（FSM）的 XSS 攻击防护过滤。
-  - AST 标签展平（Inline Flattening）与定深保护（Bounded Depth），杜绝小程序递归爆栈。
-  - 支持超长文档分块渐进加载（Chunk Rendering），优化跨线程 `setData` / 虚拟 DOM 负载。
-- **Markdown & 代码语法高亮**：
-  - 原生支持 Markdown 格式直接解析输入。
-  - 内置 Prism 语法着色，高亮关键词、字符串、注释等。
+### 1. ⚡ AST 解析 LRU 内存高速缓存
+- 内置零依赖 32 位 FNV-1a 哈希与 LRU 缓存池（默认容量 50 条）。
+- 页面回退、列表复用或重新挂载时 **0ms 瞬间还原**，彻底杜绝重复的正则分词、样式内联与 DOM 树构建开销。
+- 支持通过 `cache: false` 禁用，并对外导出 `clearASTCache()` 和 `getASTCacheSize()` 控制接口。
+
+### 2. 🔤 基准字号智能映射与动态累加
+- **基准字号映射**：支持自定义显示基准字号 `baseFontSize`（默认 `15px`）与内容基准字号 `contentBaseFontSize`（默认 `22px`，微信公众号/Quill 常用正文）。
+- **等差层次累加**：内容中每高出/低于基准 1 个字号单位，展示端以目标基准平滑累加（如内容 `22px` → 展示 `15px`，内容 `23px` → 展示 `16px`，内容 `26px` → 展示 `19px`），完美保留富文本层级差。
+- **小程序 20rem 规范转换**：基于微信小程序官方 `375px 屏幕 = 20rem (1rem = 18.75px)` 计算规则，支持 Retina 尺寸折半 (`remScale = 0.5`)；自动保留 1px 发丝边框防丢像素，保留无单位行高倍数。
+
+### 3. 📜 超长图文按需触底追加 (Scroll Append)
+- **拒绝首屏卡顿**：支持 `appendMode: 'scroll'` 模式，首屏仅加载首批 chunk（如 15 个根节点）。
+- **视口哨兵探测**：通过底部 `IntersectionObserver` 哨兵自动感知用户滚动，临近视口底部（350px 缓冲带）时才动态挂载下一批节点，极大节省深层 DOM 与内存开销。
+- **平滑空闲调度**：在 `stream` 模式下采用 `requestIdleCallback` 调频，不阻塞主线程手势交互与动画。
+
+### 4. 🖼️ 图片 CLS 零抖动与优雅 Fallback
+- **智能宽高比提取**：自动从微信文章特有的 `data-ratio`、`data-w`/`data-h`、HTML `width`/`height` 及 inline style 计算图片宽高比（`aspectRatio` 与 `paddingBottom` 占位）。
+- **告别排版跳跃（Zero CLS）**：图片在网络加载完成前即精准预占高位，内容不被突然撑开。
+- **容错降级**：图片遇到 404 或网络加载失败时，自动切换为优雅虚线占位与错误提示，绝不撕裂排版。
+- **原生懒加载**：全端开启 `loading="lazy"` / `lazy-load`。
+
+### 5. 🛡️ 纯净模式（Zero-Default-Styles）与全事件接管
+- **组件不设任何强制预设样式**（无强制外边距、无预置灰色背景），样式 100% 完全由富文本内容驱动，保证跨端高度纯净与设计保真。
+- 彻底摒弃受限的原生 `<rich-text>`，全节点采用跨端基元组件递归渲染，100% 支持事件拦截与动态交互。
+
+### 6. 📦 标准预编译产物与现代化单包分发
+- 使用 `tsup` 预编译打包，提供完整的 **ESM (`.mjs`)**、**CJS (`.js`)** 与 **TypeScript 类型声明 (`.d.ts`)**，开箱即用，无需依赖方强配 Babel/TS 转译规则。
+- 现代化子路径设计：`omni-rich-text/taro`、`omni-rich-text/uni`、`omni-rich-text/react-native`、`omni-rich-text/core`、`omni-rich-text/wechat`。
 
 ---
 
@@ -55,9 +60,9 @@ yarn add omni-rich-text
 
 ---
 
-## 🚀 跨端子路径导入与使用示例
+## 🚀 跨端多框架使用指南
 
-### 1. 在 Taro (React) 中使用 (`omni-rich-text/taro`)
+### 1. Taro (React) 适配层 (`omni-rich-text/taro`)
 
 ```tsx
 import React from 'react';
@@ -66,17 +71,22 @@ import { UniversalRichText } from 'omni-rich-text/taro';
 
 export default function ArticleDetail() {
   const htmlContent = `
-    <h1>文章标题</h1>
-    <p>这是一段包含 <a href="https://github.com">外部链接</a> 和图片的富文本：</p>
-    <img src="https://picsum.photos/600/400" alt="示例图" />
-    <blockquote>这是一个引用块</blockquote>
+    <section style="font-size: 22px;">
+      <h2>文章主标题 (26px)</h2>
+      <p style="font-size: 22px;">这是正文段落，将按基准字号映射显示为 15px。</p>
+      <img src="https://picsum.photos/800/450" data-ratio="0.5625" alt="技术架构图" />
+      <p>支持包含 <a href="https://github.com/Agions/omni-rich-text">外部链接</a> 和自定义高亮。</p>
+    </section>
   `;
 
   return (
-    <View style={{ padding: 16 }}>
+    <View style={{ padding: '0 16px' }}>
       <UniversalRichText
         content={htmlContent}
         mode="wechat"
+        baseFontSize={15}
+        contentBaseFontSize={22}
+        appendMode="scroll"
         imageSkeleton
         theme={{
           linkColor: '#1677ff',
@@ -84,29 +94,26 @@ export default function ArticleDetail() {
         }}
         webviewPath="/pages/webview/index"
         tabBarList={['/pages/index/index', '/pages/user/index']}
-        onLinkTap={(ctx) => {
-          console.log('点击了链接:', ctx.href);
-        }}
-        onImageTap={({ src, index }) => {
-          console.log(`点击第 ${index + 1} 张图片:`, src);
-        }}
+        onLinkTap={(ctx) => console.log('点击链接:', ctx.href)}
+        onImageTap={({ src, index }) => console.log('查看大图:', src, index)}
       />
     </View>
   );
 }
 ```
 
-### 2. 在 UniApp (Vue3) 中使用 (`omni-rich-text/uni`)
+### 2. UniApp (Vue 3) 适配层 (`omni-rich-text/uni`)
 
 ```vue
 <template>
-  <view class="container">
+  <view class="article-container">
     <UniversalRichText
-      :content="markdownContent"
-      format="markdown"
+      :content="htmlContent"
       mode="wechat"
+      :base-font-size="15"
+      :content-base-font-size="22"
       :image-skeleton="true"
-      :theme="{ linkColor: '#07c160', codeBgColor: '#1e1e1e' }"
+      :theme="{ linkColor: '#07c160' }"
       webview-path="/pages/webview/index"
       :tab-bar-list="['/pages/home/index']"
       @link-tap="handleLinkTap"
@@ -119,25 +126,21 @@ export default function ArticleDetail() {
 import { ref } from 'vue';
 import { UniversalRichText } from 'omni-rich-text/uni';
 
-const markdownContent = ref(`
-# Omni Rich Text
-- 跨端支持：Taro / UniApp / React Native / 原生微信
-- 性能优异，按需引入
-
-[打开关于页](/pages/about/index)
+const htmlContent = ref(`
+  <p style="font-size: 22px;">欢迎使用 UniApp 跨端富文本适配组件。</p>
 `);
 
 function handleLinkTap({ href }: { href: string }) {
-  console.log('Link clicked:', href);
+  console.log('点击链接:', href);
 }
 
 function handleImageTap({ src, index }: { src: string; index: number }) {
-  console.log('Image clicked:', src, index);
+  console.log('点击图片预览:', src, index);
 }
 </script>
 ```
 
-### 3. 在 React Native 中使用 (`omni-rich-text/react-native` 或 `omni-rich-text/rn`)
+### 3. React Native 适配层 (`omni-rich-text/react-native` 或 `omni-rich-text/rn`)
 
 ```tsx
 import React from 'react';
@@ -146,34 +149,33 @@ import { UniversalRichText } from 'omni-rich-text/react-native';
 
 export default function NativeArticle() {
   const htmlContent = `
-    <h2>React Native 富文本渲染</h2>
-    <p>完美支持样式转换、代码块横向滚动以及图片骨架屏淡入效果。</p>
+    <h2>React Native 原生富文本</h2>
+    <p>完美支持样式到 ViewStyle 转换、代码横向滚动与图片渐显。</p>
+    <img src="https://picsum.photos/600/400" width="600" height="400" />
   `;
 
   return (
     <ScrollView style={{ flex: 1, padding: 16 }}>
       <UniversalRichText
         content={htmlContent}
+        baseFontSize={15}
+        contentBaseFontSize={22}
         imageSkeleton
         theme={{
           linkColor: '#2563eb',
           codeBgColor: '#1e293b'
         }}
-        onLinkTap={({ href }) => {
-          console.log('Open URL:', href);
-        }}
-        onImageTap={({ src, index }) => {
-          console.log('Preview image index:', index);
-        }}
+        onLinkTap={({ href }) => console.log('打开链接:', href)}
+        onImageTap={({ src, index }) => console.log('大图预览:', index)}
       />
     </ScrollView>
   );
 }
 ```
 
-### 4. 在 原生微信小程序 中使用 (`omni-rich-text/wechat`)
+### 4. 原生微信小程序 (`omni-rich-text/wechat`)
 
-在页面配置 `index.json` 中引入组件：
+在页面配置 `index.json` 中声明组件：
 
 ```json
 {
@@ -189,144 +191,100 @@ export default function NativeArticle() {
 <omni-rich-text
   content="{{htmlContent}}"
   mode="wechat"
+  baseFontSize="{{15}}"
+  contentBaseFontSize="{{22}}"
   theme="{{themeConfig}}"
   bind:linkTap="onLinkTap"
   bind:imageTap="onImageTap"
 />
 ```
 
-在页面 `index.js` 中：
-
-```js
-Page({
-  data: {
-    htmlContent: '<p>欢迎使用原生微信小程序版 <a href="https://example.com">omni-rich-text</a></p>',
-    themeConfig: {
-      linkColor: '#07c160'
-    }
-  },
-  onLinkTap(e) {
-    console.log('Link tapped:', e.detail.href);
-  },
-  onImageTap(e) {
-    console.log('Image tapped:', e.detail.src);
-  }
-});
-```
-
 ### 5. 纯核心解析引擎 (`omni-rich-text/core` 或 `omni-rich-text`)
 
-如果您仅需要将富文本解析为优化的 AST 树，无需任何 UI 组件：
+如果您只需要将富文本解析并优化为标准化 AST 树，无需任何 UI 组件（支持 Node.js / SSR）：
 
 ```ts
-import { parseRichContent, chunkAST } from 'omni-rich-text/core';
+import { parseRichContent, clearASTCache } from 'omni-rich-text/core';
 
-const { ast, galleryList } = parseRichContent('<p>Hello <strong>World</strong></p>', {
+const { ast, galleryList } = parseRichContent('<p style="font-size:22px">Hello <strong>World</strong></p>', {
   mode: 'wechat',
-  extractStyles: true
+  baseFontSize: 15,
+  contentBaseFontSize: 22,
+  cache: true
 });
 
-console.log(ast); // 结构化 AST 节点列表
-console.log(galleryList); // 提取的图片 URL 列表
+console.log(ast);          // 结构化 AST 树
+console.log(galleryList);  // 全文图片有序 URL 列表
 ```
 
 ---
 
-## 🎨 主题定制 (ThemeConfig)
-
-通过 `theme` 属性可自由定制所有语义元素的色彩（所有属性均可选，未设置则使用开箱即用的优质默认值）：
-
-```ts
-const customTheme = {
-  /** 超链接 <a> 文字色（默认: #576b95 微信蓝） */
-  linkColor: '#1677ff',
-
-  /** 引用块 <blockquote> 左边框颜色（默认: #dcdfe6） */
-  blockquoteBorderColor: '#07c160',
-  /** 引用块背景色（默认: #f7f7f7） */
-  blockquoteBgColor: '#f0fdf4',
-  /** 引用块文字颜色（默认: rgba(0,0,0,0.55)） */
-  blockquoteTextColor: '#374151',
-
-  /** 代码块 <pre><code> 背景色（默认: #282c34） */
-  codeBgColor: '#1e1e1e',
-  /** 代码块文字颜色（默认: #abb2bf） */
-  codeTextColor: '#d4d4d4',
-
-  /** 表格 <table> 单元格边框颜色（默认: #e7e7e7） */
-  tableBorderColor: '#e5e7eb',
-  /** 表头 <th> 背景色（默认: #f8f8f8） */
-  tableHeaderBgColor: '#f9fafb',
-
-  /** 列表 <li> 圆点/序号颜色（默认: #666666） */
-  bulletColor: '#07c160',
-
-  /** 分割线 <hr> 颜色（默认: #e7e7e7） */
-  hrColor: '#f0f0f0',
-
-  /** 图片骨架屏占位背景色（默认: #f1f5f9） */
-  imageSkeletonColor: '#e2e8f0'
-};
-```
-
----
-
-## ⚙️ 属性与事件配置参考
+## ⚙️ 完整 API 配置属性说明
 
 | 属性名 | 类型 | 默认值 | 描述 |
 | :--- | :--- | :--- | :--- |
 | `content` | `string` | **必填** | 富文本内容（HTML 或 Markdown 字符串） |
 | `format` | `'html' \| 'markdown'` | `'html'` | 内容格式 |
-| `fontSize` | `number \| string` | `'1rem'` | 外层容器基准字号，如 `'1rem'`、`'0.875rem'`、`16`、`'16px'` |
-| `rootFontSize` | `number` | `16` | 用于 rem 相对计算的根字号基准（px）。默认 16（1rem = 16px） |
-| `fontScale` | `number` | `1` | 字体缩放系数。默认 1（不写死减少一半，保持 1:1 标准尺寸） |
-| `theme` | `ThemeConfig` | `{}` | 细粒度主题颜色控制 |
-| `imageSkeleton`| `boolean` | `true` | 是否启用图片骨架屏与淡入动画（根据 data-ratio 零抖动占位） |
-| `chunked` | `boolean` | `true` | 是否启用超长文章分片渐进式流式渲染 |
-| `chunkSize` | `number` | `15` | 每批分片渲染的根节点数量 |
-| `maxDepth` | `number` | `8` (wechat模式下12) | 最大递归嵌套深度，超过自动执行标签剪枝展平 |
-| `selectable` | `boolean` | `false` | 是否允许文本选中复制（默认关闭，保证原生排版防误触体验） |
-| `webviewPath`| `string` | `undefined` | 小程序端用于承载外部链接的 webview 页面路由 |
-| `tabBarList` | `string[]` | `[]` | 小程序的 TabBar 页面路由列表，用于自动切换 `switchTab` |
+| `mode` | `'default' \| 'wechat'` | `'default'` | 渲染模式。`wechat` 模式自动内联 `<style>` 块并适配公众号卡片 |
+| `baseFontSize` | `number \| string` | `15` | **目标显示基准字号**（px）。如设为 15，正文 22px 将按 15px 渲染 |
+| `contentBaseFontSize` | `number \| string` | `22` | **内容基准字号**（px）。文章每递增 1px，展示字号在 baseFontSize 上累加 1px |
+| `rootFontSize` | `number` | `18.75` | 小程序 rem 换算基准（375px 屏宽 20rem 规则，1rem = 18.75px） |
+| `remScale` | `number` | `0.5` | rem 缩放因子。默认 0.5（750 视网膜设计稿尺寸折半适配） |
+| `appendMode` | `'stream' \| 'scroll'` | `'stream'` | 长文挂载策略：`scroll` 为视口按需触底追加，`stream` 为空闲调频流式 |
+| `cache` | `boolean` | `true` | 是否启用 AST 解析 LRU 内存缓存池（0ms 复用） |
+| `chunked` | `boolean` | `true` | 是否启用分片渐进渲染，防止长文阻塞主线程 |
+| `chunkSize` | `number` | `15` | 每个分片渲染的根节点数量 |
+| `imageSkeleton` | `boolean` | `true` | 是否启用图片骨架屏与淡入动画（基于宽高比预占高，防 CLS 抖动） |
+| `selectable` | `boolean` | `false` | 文本是否支持选中复制（默认 `false` 防止排版长按误触） |
+| `theme` | `ThemeConfig` | `{}` | 细粒度主题配色定制（超链接、引用块、代码块、表格、分割线等） |
+| `webviewPath` | `string` | `undefined` | 小程序内承载外链跳转的自定义 webview 页面路由 |
+| `tabBarList` | `string[]` | `[]` | TabBar 页面路由列表，命中链接自动调用 `switchTab` |
 | `components` | `Record<string, Component>` | `undefined` | 声明式自定义组件映射表，如 `{ 'product-card': ProductCard }` |
-| `customRender`| `(node: ASTNode) => ReactNode` | `undefined` | 针对特定节点返回自定义渲染结果的拦截 Hook |
+| `customRender` | `(node: ASTNode) => ReactNode` | `undefined` | 针对特定节点返回自定义渲染结果的拦截 Hook |
 | `onLinkTap` / `@link-tap` | `Function` | - | 链接点击拦截器，返回 `false` 可阻止默认跳转行为 |
-| `onImageTap` / `@image-tap` | `Function` | - | 图片点击回调事件，携带当前图 URL 与画廊全局索引 |
-| `onMediaEvent` / `@media-event`| `Function` | - | 音视频播放、暂停、结束等媒体事件回调 |
+| `onImageTap` / `@image-tap` | `Function` | - | 图片点击回调事件，携带当前图 URL 与全局画廊索引 |
+| `onLongPressText` / `@long-press-text` | `Function` | - | 文本长按事件回调 |
+| `onMediaEvent` / `@media-event` | `Function` | - | 音视频播放、暂停、结束等媒体事件回调 |
 
 ---
 
-## 📁 目录规范说明
+## 🎨 主题配置 (ThemeConfig)
 
-```
-omni-rich-text/
-├── src/
-│   ├── core/           # 框架无关 AST 解析、清洗、样式内联与工具
-│   │   ├── tests/      # 核心单元测试集
-│   │   └── ...
-│   ├── taro/           # Taro 3 (React) 适配层
-│   ├── uni/            # UniApp (Vue 3) 适配层
-│   ├── react-native/   # React Native 适配层
-│   └── wechat/         # 原生微信小程序组件产物
-├── examples/
-│   └── demo/           # Taro 小程序与 H5 体验示例
-├── package.json        # 单包 package.json 配置与 exports 声明
-├── tsconfig.json       # 根 TypeScript 路径映射配置
-└── README.md
+```ts
+const customTheme: ThemeConfig = {
+  linkColor: '#1677ff',              // 超链接文字颜色
+  blockquoteBorderColor: '#07c160',  // 引用块左边框颜色
+  blockquoteBgColor: '#f0fdf4',      // 引用块背景色
+  blockquoteTextColor: '#374151',    // 引用块文字颜色
+  codeBgColor: '#1e1e1e',            // 代码块背景色
+  codeTextColor: '#d4d4d4',          // 代码块文字颜色
+  tableBorderColor: '#e5e7eb',       // 表格边框颜色
+  tableHeaderBgColor: '#f9fafb',     // 表头背景底色
+  bulletColor: '#07c160',            // 列表序号/圆点颜色
+  hrColor: '#f0f0f0',                // 分割线颜色
+  imageSkeletonColor: '#f1f5f9'      // 图片骨架屏占位底色
+};
 ```
 
 ---
 
 ## 🧪 自动化测试验证
 
-运行核心解析与渲染引擎全量测试用例：
+项目核心解析层保持 100% 的健壮性，执行以下命令运行测试集：
 
 ```bash
 npm test
 ```
 
+41 项核心测试覆盖了：
+- 微信公众号真实文章高保真排版还原
+- 尺寸 rem 换算与 1px 发丝边框保护
+- 基准字号等差动态累加算法
+- LRU 缓存命中与失效策略
+- 图片 CLS 尺寸与宽高比提取
+
 ---
 
-## 📄 License
+## 📄 开源协议
 
-[MIT](LICENSE)
+本项目基于 [MIT](LICENSE) 协议开源。欢迎提交 Issue 与 Pull Request！

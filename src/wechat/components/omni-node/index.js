@@ -3,6 +3,9 @@
 // Events bubble upward via triggerEvent so urt-rich-text can intercept them.
 
 Component({
+  options: {
+    virtualHost: true
+  },
   properties: {
     /** The AST node object produced by @universal-rt/core parseRichContent */
     node: { type: Object, value: {} },

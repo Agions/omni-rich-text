@@ -350,6 +350,59 @@ function isIconImage(node: ASTNode): boolean {
   return false;
 }
 
+function hasDescendantImage(node: ASTNode): boolean {
+  if (node.name === 'img' && !isIconImage(node)) return true;
+  if (!node.children || node.children.length === 0) return false;
+  return node.children.some(hasDescendantImage);
+}
+
+/**
+ * Recursively optimizes descendant elements and images inside a column of a multi-column row.
+ * Ensures images and wrapper sections scale down properly on mobile and never overflow the column.
+ */
+function optimizeColumnDescendants(node: ASTNode, isMultiColumn: boolean): void {
+  if (node.name === 'img') {
+    if (isIconImage(node)) {
+      node.extra = node.extra || {};
+      node.extra.isIcon = true;
+      node.styleObj = node.styleObj || {};
+      node.styleObj['display'] = 'inline-block';
+      node.styleObj['vertical-align'] = 'middle';
+    } else {
+      node.extra = node.extra || {};
+      node.extra.isMultiImage = isMultiColumn;
+      node.styleObj = node.styleObj || {};
+      node.styleObj['width'] = '100%';
+      node.styleObj['max-width'] = '100%';
+      node.styleObj['display'] = 'block';
+      node.styleObj['box-sizing'] = 'border-box';
+      if (node.styleObj['height'] && node.styleObj['height'] !== 'auto') {
+        node.styleObj['height'] = 'auto';
+      }
+      node.styleStr = stringifyStyleObject(node.styleObj);
+    }
+    return;
+  }
+
+  if (node.type === 'element') {
+    node.styleObj = node.styleObj || {};
+    node.styleObj['box-sizing'] = 'border-box';
+    node.styleObj['max-width'] = '100%';
+    // If a nested wrapper in a column has a fixed pixel/rem width (e.g. 333.5px from desktop WeChat editor),
+    // clamp it to 100% so it doesn't force the column to expand or overflow
+    if (node.styleObj['width'] && !node.styleObj['width'].endsWith('%')) {
+      node.styleObj['width'] = '100%';
+    }
+    node.styleStr = stringifyStyleObject(node.styleObj);
+  }
+
+  if (node.children && node.children.length > 0) {
+    for (const child of node.children) {
+      optimizeColumnDescendants(child, isMultiColumn);
+    }
+  }
+}
+
 /**
  * Recursively post-processes and optimizes layout for flex containers,
  * multi-image rows, and mobile responsive adaptation.
@@ -372,10 +425,13 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
       // 1. Flex container optimization for mobile:
       // Prevent flex children from overflowing screen by setting min-width: 0 and allowing flex items to shrink
       if (isFlex && !isColumn) {
+        node.styleObj = node.styleObj || {};
+        node.styleObj['box-sizing'] = node.styleObj['box-sizing'] || 'border-box';
+        node.styleObj['max-width'] = node.styleObj['max-width'] || '100%';
+        node.styleStr = stringifyStyleObject(node.styleObj);
+
         const elemChildren = node.children.filter((c) => c.type === 'element');
-        const hasImg = elemChildren.some(
-          (c) => c.name === 'img' || (c.children && c.children.some((cc) => cc.name === 'img'))
-        );
+        const hasImg = elemChildren.some(hasDescendantImage);
 
         for (const child of node.children) {
           if (child.type !== 'element') continue;
@@ -390,6 +446,13 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
           if (elemChildren.length > 1 && hasImg) {
             child.styleObj['flex'] = '1 1 0%';
             child.styleObj['flex-shrink'] = '1';
+            // If child has fixed pixel/rem width (e.g. 333.5px), convert to percentage column width
+            if (!child.styleObj['width'] || !child.styleObj['width'].endsWith('%')) {
+              child.styleObj['width'] = `${parseFloat((100 / elemChildren.length).toFixed(2))}%`;
+            }
+            if (child.name !== 'img') {
+              optimizeColumnDescendants(child, true);
+            }
           } else if (child.styleObj.flex === '0 0 auto') {
             child.styleObj.flex = '0 1 auto';
             child.styleObj['flex-shrink'] = '1';
@@ -406,29 +469,11 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
               child.extra = child.extra || {};
               child.extra.isMultiImage = elemChildren.length > 1;
               child.styleObj['flex'] = child.styleObj['flex'] || '1 1 0%';
-              child.styleObj['width'] = '100%';
+              child.styleObj['width'] = elemChildren.length > 1
+                ? `${parseFloat((100 / elemChildren.length).toFixed(2))}%`
+                : '100%';
               child.styleObj['max-width'] = '100%';
               child.styleObj['display'] = 'block';
-            }
-          }
-
-          // If child is a wrapper containing an img
-          if (child.children && child.children.length > 0) {
-            for (const sub of child.children) {
-              if (sub.name === 'img') {
-                if (isIconImage(sub)) {
-                  sub.extra = sub.extra || {};
-                  sub.extra.isIcon = true;
-                } else {
-                  sub.extra = sub.extra || {};
-                  sub.extra.isMultiImage = elemChildren.length > 1;
-                  sub.styleObj = sub.styleObj || {};
-                  sub.styleObj['width'] = '100%';
-                  sub.styleObj['max-width'] = '100%';
-                  sub.styleObj['display'] = 'block';
-                  sub.styleStr = stringifyStyleObject(sub.styleObj);
-                }
-              }
             }
           }
 

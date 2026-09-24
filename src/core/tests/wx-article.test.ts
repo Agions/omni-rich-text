@@ -327,4 +327,85 @@ describe('WeChat Official Account Article Parsing & Fidelity', () => {
     expect(img1?.styleObj['width']).toBe('50%');
     expect(img2?.styleObj['width']).toBe('50%');
   });
+
+  // Scenario 12: Deeply Nested 2x2 Image Grid (WeChat / Xiumi Layout)
+  it('should optimize deeply nested 2x2 image grid columns with flex: 1 1 0% and width: 50%', () => {
+    const html = `
+      <section style="display: flex; flex-flow: row; justify-content: flex-start; align-items: flex-start;">
+        <section style="display: block; align-self: flex-start; flex: 0 0 auto; width: 333.5px; padding: 0 0.1333rem 0 0; box-sizing: border-box;">
+          <section>
+            <section>
+              <section>
+                <img src="https://example.com/grid1.png" style="width: 100%;" />
+              </section>
+            </section>
+          </section>
+          <section>
+            <section>
+              <section>
+                <img src="https://example.com/grid2.png" style="width: 100%;" />
+              </section>
+            </section>
+          </section>
+        </section>
+        <section style="display: block; align-self: flex-start; flex: 0 0 auto; width: 333.5px; padding: 0 0 0 0.1333rem; box-sizing: border-box;">
+          <section>
+            <section>
+              <section>
+                <img src="https://example.com/grid3.png" style="width: 100%;" />
+              </section>
+            </section>
+          </section>
+          <section>
+            <section>
+              <section>
+                <img src="https://example.com/grid4.png" style="width: 100%;" />
+              </section>
+            </section>
+          </section>
+        </section>
+      </section>
+    `;
+
+    const result = parseRichContent(html, { mode: 'wechat' });
+    expect(result.ast).toHaveLength(1);
+
+    const parent = result.ast[0];
+    expect(parent.styleObj['box-sizing']).toBe('border-box');
+    expect(parent.styleObj['max-width']).toBe('100%');
+
+    const col1 = parent.children?.[0];
+    const col2 = parent.children?.[1];
+
+    // Both columns must receive proportional flex and 50% width to prevent right column overflow
+    expect(col1?.styleObj['flex']).toBe('1 1 0%');
+    expect(col1?.styleObj['min-width']).toBe('0');
+    expect(col1?.styleObj['max-width']).toBe('100%');
+    expect(col1?.styleObj['width']).toBe('50%');
+
+    expect(col2?.styleObj['flex']).toBe('1 1 0%');
+    expect(col2?.styleObj['min-width']).toBe('0');
+    expect(col2?.styleObj['max-width']).toBe('100%');
+    expect(col2?.styleObj['width']).toBe('50%');
+
+    // Deeply nested images must have width: 100% and display: block
+    const img1 = col1?.children?.[0]?.children?.[0]?.children?.[0]?.children?.[0];
+    expect(img1?.name).toBe('img');
+    expect(img1?.styleObj['width']).toBe('100%');
+    expect(img1?.styleObj['display']).toBe('block');
+    expect(img1?.extra?.isMultiImage).toBe(true);
+
+    const img3 = col2?.children?.[0]?.children?.[0]?.children?.[0]?.children?.[0];
+    expect(img3?.name).toBe('img');
+    expect(img3?.styleObj['width']).toBe('100%');
+    expect(img3?.styleObj['display']).toBe('block');
+    expect(img3?.extra?.isMultiImage).toBe(true);
+
+    expect(result.galleryList).toEqual([
+      'https://example.com/grid1.png',
+      'https://example.com/grid2.png',
+      'https://example.com/grid3.png',
+      'https://example.com/grid4.png'
+    ]);
+  });
 });

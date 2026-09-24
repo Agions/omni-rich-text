@@ -81,7 +81,7 @@
 <view
   wx:elif="{{node.name === 'img'}}"
   class="omni-image-skeleton"
-  style="display:{{node.extra.isMultiImage || (node.styleObj.width && node.styleObj.width !== '100%') ? 'inline-block' : 'block'}};max-width:100%;min-width:0;box-sizing:border-box;vertical-align:middle;width:{{node.styleObj.width || '100%'}};{{node.extra.skeletonStyle}}"
+  style="display:{{(node.styleObj.width && node.styleObj.width !== '100%') ? 'inline-block' : 'block'}};max-width:100%;min-width:0;box-sizing:border-box;vertical-align:middle;width:{{node.styleObj.width || '100%'}};{{node.extra.skeletonStyle}}"
   catch:tap="onImageTap"
   data-src="{{node.attrs.src || node.attrs['data-src']}}"
   data-gallery-index="{{node.extra.galleryIndex}}"

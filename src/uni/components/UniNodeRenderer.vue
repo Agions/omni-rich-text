@@ -294,7 +294,12 @@
 import { computed, ref } from 'vue';
 import { ASTNode, ThemeConfig, INLINE_TAGS, isAllInline } from '../../core';
 
-defineOptions({ name: 'UniNodeRenderer' });
+defineOptions({
+  name: 'UniNodeRenderer',
+  options: {
+    virtualHost: true
+  }
+});
 
 const props = withDefaults(
   defineProps<{

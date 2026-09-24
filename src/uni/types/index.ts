@@ -43,6 +43,10 @@ export interface UniRichTextProps {
   fontScale?: number;
   /** Semantic color theme overrides */
   theme?: ThemeConfig;
+  /** Custom external font size resolver function */
+  fontSizeResolver?: (sourcePx: number, rawValue: string) => string | number;
+  /** Action when tapping an image that has an anchor link. 'link': navigate (default), 'preview': open gallery, 'both': both */
+  imageLinkAction?: 'link' | 'preview' | 'both';
   /** Enable image skeleton placeholder. Default: true */
   imageSkeleton?: boolean;
 }

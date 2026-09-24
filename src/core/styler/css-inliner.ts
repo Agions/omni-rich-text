@@ -11,6 +11,12 @@ export const DEFAULT_TAG_STYLES: Record<string, Record<string, string>> = {
 export const WX_ARTICLE_TAG_STYLES: Record<string, Record<string, string>> = {};
 
 /**
+ * WeChat Official Account article desktop canvas baseline width in px.
+ * Desktop rich text editors (Xiumi, 135editor, MP editor) default to a 677px wide editing container.
+ */
+export const WECHAT_CANVAS_WIDTH = 677;
+
+/**
  * WeChat Mini Program standard rem base:
  * In WeChat Mini Program, screen width is specified as 20rem.
  * On standard 375px screen (750rpx):
@@ -124,7 +130,8 @@ export function formatDimensionToRem(
   value: string,
   rootFontSize: number = WECHAT_REM_BASE,
   scale: number = 1,
-  remScale: number = DEFAULT_REM_SCALE
+  remScale: number = DEFAULT_REM_SCALE,
+  mode: 'default' | 'wechat' = 'default'
 ): string {
   if (!value || typeof value !== 'string') return value;
   const trimmed = value.trim();
@@ -134,11 +141,34 @@ export function formatDimensionToRem(
   const cleanVal = trimmed.replace(/!important\s*$/i, '').trim();
 
   const baseRoot = typeof rootFontSize === 'number' && rootFontSize > 0 ? rootFontSize : WECHAT_REM_BASE;
-  const effectiveRemScale = typeof remScale === 'number' && remScale > 0 ? remScale : DEFAULT_REM_SCALE;
+  const lowerProp = prop.toLowerCase();
+  const isWidthProp = lowerProp === 'width' || lowerProp === 'max-width' || lowerProp === 'min-width';
+
+  // In WeChat mode with default remScale, scale width dimensions according to WeChat desktop canvas (677px)
+  // to 375px mobile screen: 375 / 677 ≈ 0.5539. This eliminates the right-hand blank space when desktop 677px
+  // multi-column widths (e.g. 333.5px columns) are rendered on mobile!
+  // For other properties (border-radius, padding, margin, etc.), standard remScale (0.5) is maintained.
+  const isDefaultRemScale = remScale === DEFAULT_REM_SCALE;
+  const effectiveRemScale =
+    mode === 'wechat' && isDefaultRemScale && isWidthProp
+      ? (baseRoot * 20) / WECHAT_CANVAS_WIDTH
+      : typeof remScale === 'number' && remScale > 0
+      ? remScale
+      : DEFAULT_REM_SCALE;
+
   const effectiveScale = (typeof scale === 'number' && scale > 0 ? scale : 1) * effectiveRemScale;
   const rpxBase = baseRoot * 2; // e.g. 18.75 * 2 = 37.5
 
-  const lowerProp = prop.toLowerCase();
+  // In WeChat mode, if an element or image has width >= 600px (like 677px), it was meant to be 100% full width
+  if (mode === 'wechat' && (lowerProp === 'width' || lowerProp === 'max-width')) {
+    const singleMatch = cleanVal.match(/^([\d.]+)(px)?$/i);
+    if (singleMatch) {
+      const pxNum = parseFloat(singleMatch[1]);
+      if (!isNaN(pxNum) && pxNum >= 600) {
+        return isImportant ? '100% !important' : '100%';
+      }
+    }
+  }
 
   // Case 1: Pure single number e.g. "200" or "0"
   const singleNumMatch = cleanVal.match(/^([+-]?[\d.]+)$/);
@@ -244,7 +274,8 @@ export function formatFontSizeToRem(
   rootFontSize: number = WECHAT_REM_BASE,
   fontScale: number = 1,
   baseFontSize: number | string = DEFAULT_BASE_FONT_SIZE,
-  contentBaseFontSize: number | string = DEFAULT_CONTENT_BASE_FONT_SIZE
+  contentBaseFontSize: number | string = DEFAULT_CONTENT_BASE_FONT_SIZE,
+  fontSizeResolver?: (sourcePx: number, rawValue: string) => string | number
 ): string {
   if (!value || typeof value !== 'string') return value;
   const trimmed = value.trim();
@@ -264,15 +295,33 @@ export function formatFontSizeToRem(
   const effectiveScale = typeof fontScale === 'number' && fontScale > 0 ? fontScale : 1;
   const baseRoot = typeof rootFontSize === 'number' && rootFontSize > 0 ? rootFontSize : WECHAT_REM_BASE;
 
-  // Resolve baseFontSize (target base, default 15) and contentBaseFontSize (content base, default 22)
-  const targetBase =
-    typeof baseFontSize === 'number'
-      ? baseFontSize
-      : parseFloat(String(baseFontSize)) || DEFAULT_BASE_FONT_SIZE;
-  const contentBase =
-    typeof contentBaseFontSize === 'number'
-      ? contentBaseFontSize
-      : parseFloat(String(contentBaseFontSize)) || DEFAULT_CONTENT_BASE_FONT_SIZE;
+  // Convert source unit to px
+  let sourcePx: number;
+  if (unit === 'px' || !match[2]) {
+    sourcePx = num;
+  } else if (unit === 'rpx' || unit === 'upx') {
+    sourcePx = num / 2;
+  } else if (unit === 'pt') {
+    sourcePx = (num * 4) / 3;
+  } else if (unit === 'rem' || unit === 'em') {
+    sourcePx = num * baseRoot;
+  } else {
+    sourcePx = num;
+  }
+
+  // External custom font size rule adjustment
+  if (typeof fontSizeResolver === 'function') {
+    const customResult = fontSizeResolver(sourcePx, cleanVal);
+    if (typeof customResult === 'string' && customResult.trim()) {
+      const res = customResult.trim();
+      return isImportant && !res.includes('!important') ? `${res} !important` : res;
+    }
+    if (typeof customResult === 'number' && !isNaN(customResult) && customResult > 0) {
+      const remVal = (customResult * effectiveScale) / baseRoot;
+      const res = `${parseFloat(remVal.toFixed(4))}rem`;
+      return isImportant ? `${res} !important` : res;
+    }
+  }
 
   let finalRem: string;
 
@@ -280,24 +329,16 @@ export function formatFontSizeToRem(
     const val = num * effectiveScale;
     finalRem = `${parseFloat(val.toFixed(4))}${unit}`;
   } else {
-    // Convert source unit to px
-    let sourcePx: number;
-    if (unit === 'px' || !match[2]) {
-      sourcePx = num;
-    } else if (unit === 'rpx' || unit === 'upx') {
-      sourcePx = num / 2;
-    } else if (unit === 'pt') {
-      sourcePx = (num * 4) / 3;
-    } else {
-      sourcePx = num;
-    }
-
     // Dynamic base font size accumulation:
-    // e.g. targetBase = 15, contentBase = 22
-    // If sourcePx = 22 -> delta = 0 -> mappedPx = 15
-    // If sourcePx = 23 -> delta = 1 -> mappedPx = 16 (accumulate 1)
-    // If sourcePx = 24 -> delta = 2 -> mappedPx = 17 (accumulate 2)
-    // If sourcePx = 26 -> delta = 4 -> mappedPx = 19 (accumulate 4)
+    const targetBase =
+      typeof baseFontSize === 'number'
+        ? baseFontSize
+        : parseFloat(String(baseFontSize)) || DEFAULT_BASE_FONT_SIZE;
+    const contentBase =
+      typeof contentBaseFontSize === 'number'
+        ? contentBaseFontSize
+        : parseFloat(String(contentBaseFontSize)) || DEFAULT_CONTENT_BASE_FONT_SIZE;
+
     const delta = sourcePx - contentBase;
     const mappedPx = Math.max(8, targetBase + delta);
     const scaledPx = mappedPx * effectiveScale;
@@ -349,13 +390,14 @@ export function toRemFontSize(
 export function resolveNodeStyles(
   tagName: string,
   userInlineStyle: string,
-  _mode: 'default' | 'wechat' = 'default',
+  mode: 'default' | 'wechat' = 'default',
   extraStyles?: Record<string, string>,
   fontScale: number = 1,
   rootFontSize: number = WECHAT_REM_BASE,
   remScale: number = DEFAULT_REM_SCALE,
   baseFontSize: number | string = DEFAULT_BASE_FONT_SIZE,
-  contentBaseFontSize: number | string = DEFAULT_CONTENT_BASE_FONT_SIZE
+  contentBaseFontSize: number | string = DEFAULT_CONTENT_BASE_FONT_SIZE,
+  fontSizeResolver?: (sourcePx: number, rawValue: string) => string | number
 ): {
   styleStr: string;
   styleObj: Record<string, string>;
@@ -372,16 +414,21 @@ export function resolveNodeStyles(
   for (const [prop, val] of Object.entries(merged)) {
     if (!val) continue;
     if (prop === 'font-size') {
-      merged[prop] = formatFontSizeToRem(val, rootFontSize, fontScale, baseFontSize, contentBaseFontSize);
+      merged[prop] = formatFontSizeToRem(val, rootFontSize, fontScale, baseFontSize, contentBaseFontSize, fontSizeResolver);
     } else if (prop === 'line-height') {
       // Unitless line-height (e.g. line-height: 2, 1.8) should stay unitless
       if (/^[\d.]+(\s*!important)?$/i.test(val.trim())) {
         continue;
       }
-      merged[prop] = formatDimensionToRem(prop, val, rootFontSize, fontScale, remScale);
+      merged[prop] = formatDimensionToRem(prop, val, rootFontSize, fontScale, remScale, mode);
     } else {
-      merged[prop] = formatDimensionToRem(prop, val, rootFontSize, 1, remScale);
+      merged[prop] = formatDimensionToRem(prop, val, rootFontSize, 1, remScale, mode);
     }
+  }
+
+  // Ensure img tag always has max-width: 100%
+  if (tagName.toLowerCase() === 'img') {
+    merged['max-width'] = merged['max-width'] || '100%';
   }
 
   return {

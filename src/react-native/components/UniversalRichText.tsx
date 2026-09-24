@@ -40,6 +40,8 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
   rootFontSize,
   remScale,
   fontScale,
+  fontSizeResolver,
+  imageLinkAction = 'link',
   imageSkeleton = true,
   customRender,
   tabBarList = [],
@@ -67,9 +69,10 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
       baseFontSize: effectiveBaseFontSize,
       contentBaseFontSize: effectiveContentBaseFontSize,
       fontSize,
+      fontSizeResolver,
       cache
     });
-  }, [content, format, mode, maxDepth, extractStyles, effectiveRemScale, effectiveFontScale, effectiveRootFontSize, effectiveBaseFontSize, effectiveContentBaseFontSize, fontSize, cache]);
+  }, [content, format, mode, maxDepth, extractStyles, effectiveRemScale, effectiveFontScale, effectiveRootFontSize, effectiveBaseFontSize, effectiveContentBaseFontSize, fontSize, fontSizeResolver, cache]);
 
   // ── 2. Chunk calculation ───────────────────────────────────────────────────
   const chunkedData = useMemo(() => {
@@ -186,6 +189,7 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
           node={node}
           theme={effectiveTheme}
           imageSkeleton={imageSkeleton}
+          imageLinkAction={imageLinkAction}
           onLinkTap={handleLinkTap}
           onImageTap={handleImageTap}
           onLongPressText={handleLongPressText}

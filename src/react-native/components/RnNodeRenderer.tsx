@@ -17,9 +17,12 @@ import { cssToRn } from '../styles/cssToRn';
 interface OmniImageProps {
   node: ASTNode;
   src: string;
+  linkHref?: string;
+  imageLinkAction?: 'link' | 'preview' | 'both';
   imageSkeleton?: boolean;
   imageSkeletonColor?: string;
   onImageTap: (src: string, node: ASTNode) => void;
+  onLinkTap?: (href: string, node: ASTNode) => void;
 }
 
 /**
@@ -31,9 +34,12 @@ interface OmniImageProps {
 const OmniImage: React.FC<OmniImageProps> = ({
   node,
   src,
+  linkHref,
+  imageLinkAction = 'link',
   imageSkeleton = true,
   imageSkeletonColor = '#f1f5f9',
-  onImageTap
+  onImageTap,
+  onLinkTap
 }) => {
   const opacity = React.useRef(new Animated.Value(imageSkeleton ? 0 : 1)).current;
   const [loaded, setLoaded] = React.useState(!imageSkeleton);
@@ -57,8 +63,21 @@ const OmniImage: React.FC<OmniImageProps> = ({
   const aspectRatio = node.extra?.aspectRatio || (dataRatio ? 1 / dataRatio : undefined);
   const nodeStyle = cssToRn(node.styleObj);
 
+  const effectiveHref = linkHref || node.attrs.href || node.attrs['data-href'];
+
+  const handlePress = () => {
+    if (effectiveHref && imageLinkAction !== 'preview') {
+      onLinkTap?.(effectiveHref, node);
+      if (imageLinkAction === 'both') {
+        onImageTap(src, node);
+      }
+    } else {
+      onImageTap(src, node);
+    }
+  };
+
   return (
-    <Pressable onPress={() => onImageTap(src, node)}>
+    <Pressable onPress={handlePress}>
       <View
         style={[
           styles.imageWrap,
@@ -110,10 +129,13 @@ export interface RnNodeRendererProps {
   customRender?: (node: ASTNode) => React.ReactNode | null;
   theme?: ThemeConfig;
   imageSkeleton?: boolean;
+  imageLinkAction?: 'link' | 'preview' | 'both';
   /** 0-based position of this node within its parent list (ul/ol) */
   indexInList?: number;
   /** Tag name of the direct parent node (used for li bullet logic) */
   parentTag?: string;
+  /** Enclosing anchor link href if inside <a> */
+  parentLinkHref?: string;
 }
 
 /**
@@ -148,19 +170,23 @@ export const RnNodeRenderer: React.FC<RnNodeRendererProps> = React.memo(({
   customRender,
   theme,
   imageSkeleton = true,
+  imageLinkAction = 'link',
   indexInList,
-  parentTag
+  parentTag,
+  parentLinkHref
 }) => {
   /**
    * Convenience wrapper that renders a child node with all context forwarded.
    * `pTag` defaults to the current node's tag so list items know their parent.
    */
-  const renderChild = (child: ASTNode, idx?: number, pTag = node.name) => (
+  const renderChild = (child: ASTNode, idx?: number, pTag = node.name, linkHref = parentLinkHref) => (
     <RnNodeRenderer
       key={child.id}
       node={child}
       indexInList={idx}
       parentTag={pTag}
+      parentLinkHref={node.name === 'a' ? (node.attrs.href || '') : linkHref}
+      imageLinkAction={imageLinkAction}
       theme={theme}
       imageSkeleton={imageSkeleton}
       onLinkTap={onLinkTap}
@@ -278,9 +304,12 @@ export const RnNodeRenderer: React.FC<RnNodeRendererProps> = React.memo(({
       <OmniImage
         node={node}
         src={src}
+        linkHref={parentLinkHref}
+        imageLinkAction={imageLinkAction}
         imageSkeleton={imageSkeleton}
         imageSkeletonColor={theme?.imageSkeletonColor}
         onImageTap={onImageTap}
+        onLinkTap={onLinkTap}
       />
     );
   }

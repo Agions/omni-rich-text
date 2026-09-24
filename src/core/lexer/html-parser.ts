@@ -10,6 +10,7 @@ import {
 } from '../sanitizer/whitelist';
 import {
   resolveNodeStyles,
+  stringifyStyleObject,
   WECHAT_REM_BASE,
   DEFAULT_REM_SCALE,
   DEFAULT_BASE_FONT_SIZE,
@@ -251,7 +252,8 @@ function isInsidePre(stack: ASTNode[]): boolean {
         options.rootFontSize ?? WECHAT_REM_BASE,
         options.remScale ?? DEFAULT_REM_SCALE,
         options.baseFontSize ?? options.fontSize ?? DEFAULT_BASE_FONT_SIZE,
-        options.contentBaseFontSize ?? DEFAULT_CONTENT_BASE_FONT_SIZE
+        options.contentBaseFontSize ?? DEFAULT_CONTENT_BASE_FONT_SIZE,
+        options.fontSizeResolver
       );
 
       // Pre-calculate image aspect ratio and placeholder height from attrs & style
@@ -313,5 +315,76 @@ function isInsidePre(stack: ASTNode[]): boolean {
     }
   }
 
-  return root.children || [];
+  const resultNodes = root.children || [];
+  optimizeASTLayout(resultNodes);
+  return resultNodes;
+}
+
+/**
+ * Recursively post-processes and optimizes layout for flex containers,
+ * multi-image rows, and mobile responsive adaptation.
+ */
+function optimizeASTLayout(nodes: ASTNode[]): void {
+  for (const node of nodes) {
+    if (node.children && node.children.length > 0) {
+      optimizeASTLayout(node.children);
+
+      const isFlex =
+        node.styleObj?.display === 'flex' ||
+        node.styleObj?.display === 'inline-flex' ||
+        node.styleStr?.includes('display: flex') ||
+        node.styleStr?.includes('display: inline-flex');
+
+      const isColumn =
+        node.styleObj?.['flex-direction'] === 'column' ||
+        node.styleObj?.['flex-flow']?.includes('column');
+
+      // 1. Flex container optimization for mobile:
+      // Prevent flex children from overflowing screen by setting min-width: 0 and allowing flex items to shrink
+      if (isFlex && !isColumn) {
+        for (const child of node.children) {
+          if (child.type !== 'element') continue;
+          child.styleObj = child.styleObj || {};
+          child.styleObj['min-width'] = child.styleObj['min-width'] || '0';
+          child.styleObj['max-width'] = child.styleObj['max-width'] || '100%';
+          child.styleObj['box-sizing'] = child.styleObj['box-sizing'] || 'border-box';
+
+          // In WeChat articles, desktop editors often output `flex: 0 0 auto` for columns.
+          // On mobile, flex: 0 0 auto has flex-shrink: 0 which prevents columns from shrinking,
+          // causing the right-hand column to overflow the screen. We convert it to allow shrinking.
+          if (child.styleObj.flex === '0 0 auto') {
+            child.styleObj.flex = '0 1 auto';
+            child.styleObj['flex-shrink'] = '1';
+          }
+
+          // If direct child is an img, make it flex-share the row
+          if (child.name === 'img') {
+            child.styleObj.flex = child.styleObj.flex || '1 1 0%';
+            child.styleObj['max-width'] = '100%';
+          }
+          child.styleStr = stringifyStyleObject(child.styleObj);
+        }
+      }
+
+      // 2. Multi-image row optimization (e.g. multiple images in a p / div / section):
+      const imgChildren = node.children.filter((c) => c.name === 'img');
+      if (imgChildren.length >= 2) {
+        node.extra = node.extra || {};
+        node.extra.isMultiImage = true;
+        for (const img of imgChildren) {
+          img.extra = img.extra || {};
+          img.extra.isMultiImage = true;
+          img.styleObj = img.styleObj || {};
+          // Ensure it does not force 100% width if sibling images exist
+          if (!isFlex) {
+            img.styleObj['display'] = img.styleObj['display'] || 'inline-block';
+            img.styleObj['vertical-align'] = img.styleObj['vertical-align'] || 'top';
+            img.styleObj['box-sizing'] = img.styleObj['box-sizing'] || 'border-box';
+            img.styleObj['max-width'] = img.styleObj['max-width'] || '100%';
+          }
+          img.styleStr = stringifyStyleObject(img.styleObj);
+        }
+      }
+    }
+  }
 }

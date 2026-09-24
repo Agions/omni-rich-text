@@ -209,4 +209,83 @@ describe('WeChat Official Account Article Parsing & Fidelity', () => {
     expect(code?.extra?.isCodeBlock).toBe(true);
     expect(code?.extra?.lang).toBe('typescript');
   });
+
+  // Scenario 7: Multi-image Flex Row & WeChat 677px Canvas Layout Optimization
+  it('should adapt multi-image flex row layout without overflowing the container', () => {
+    const html = `
+      <section style="display: flex; flex-direction: row; width: 677px;">
+        <div style="flex: 0 0 auto; width: 333.5px;">
+          <img src="https://example.com/img1.png" style="width: 100%;" />
+        </div>
+        <div style="flex: 0 0 auto; width: 333.5px;">
+          <img src="https://example.com/img2.png" style="width: 100%;" />
+        </div>
+      </section>
+    `;
+
+    const result = parseRichContent(html, { mode: 'wechat' });
+    const section = result.ast[0];
+    expect(section.name).toBe('section');
+    // 677px >= 600px should be converted to 100%
+    expect(section.styleObj['width']).toBe('100%');
+
+    const col1 = section.children?.[0];
+    const col2 = section.children?.[1];
+
+    // flex: 0 0 auto should be transformed to flex: 0 1 auto so items can shrink on mobile
+    expect(col1?.styleObj['flex']).toBe('0 1 auto');
+    expect(col2?.styleObj['flex']).toBe('0 1 auto');
+
+    // Child elements in flex container should have min-width: 0 and max-width: 100%
+    expect(col1?.styleObj['min-width']).toBe('0');
+    expect(col1?.styleObj['max-width']).toBe('100%');
+    expect(col2?.styleObj['min-width']).toBe('0');
+    expect(col2?.styleObj['max-width']).toBe('100%');
+  });
+
+  // Scenario 8: fontSizeResolver External Rule Override
+  it('should allow custom external fontSizeResolver to determine font-size', () => {
+    const html = `
+      <section>
+        <p style="font-size: 20px;">段落 1</p>
+        <p style="font-size: 28px;">段落 2</p>
+      </section>
+    `;
+
+    const customResolver = (sourcePx: number) => {
+      if (sourcePx <= 20) return '14px';
+      return '18px';
+    };
+
+    const result = parseRichContent(html, {
+      mode: 'wechat',
+      fontSizeResolver: customResolver
+    });
+
+    const section = result.ast[0];
+    const p1 = section.children?.[0];
+    const p2 = section.children?.[1];
+
+    expect(p1?.styleObj['font-size']).toBe('14px');
+    expect(p2?.styleObj['font-size']).toBe('18px');
+  });
+
+  // Scenario 9: Image Inside Anchor Link
+  it('should correctly parse images wrapped inside <a> anchor links', () => {
+    const html = `
+      <a href="https://mp.weixin.qq.com/s/sample-article">
+        <img src="https://example.com/banner.png" alt="Banner" />
+      </a>
+    `;
+
+    const result = parseRichContent(html, { mode: 'wechat' });
+    const a = result.ast[0];
+    expect(a.name).toBe('a');
+    expect(a.attrs.href).toBe('https://mp.weixin.qq.com/s/sample-article');
+
+    const img = a.children?.[0];
+    expect(img?.name).toBe('img');
+    expect(img?.attrs.src).toBe('https://example.com/banner.png');
+    expect(result.galleryList).toContain('https://example.com/banner.png');
+  });
 });

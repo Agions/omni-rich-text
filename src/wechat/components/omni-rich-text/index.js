@@ -161,6 +161,23 @@ Component({
     contentBaseFontSize: {
       type: Number,
       value: 22
+    },
+
+    /**
+     * Custom font size resolver function: (sourcePx: number, rawValue: string) => string | number
+     */
+    fontSizeResolver: {
+      type: null,
+      value: null
+    },
+
+    /**
+     * Action when tapping an image that has a link. 'link' (default), 'preview', 'both'.
+     * @default 'link'
+     */
+    imageLinkAction: {
+      type: String,
+      value: 'link'
     }
   },
 
@@ -253,7 +270,8 @@ Component({
         rootFontSize: this.data.rootFontSize ?? 18.75,
         baseFontSize: this.data.baseFontSize ?? 15,
         contentBaseFontSize: this.data.contentBaseFontSize ?? 22,
-        fontSize: this.data.fontSize
+        fontSize: this.data.fontSize,
+        fontSizeResolver: this.data.fontSizeResolver
       });
 
       this.setData({ galleryList });

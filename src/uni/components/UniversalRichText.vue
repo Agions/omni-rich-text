@@ -10,6 +10,7 @@
       :theme="theme"
       :selectable="selectable"
       :image-skeleton="imageSkeleton"
+      :image-link-action="imageLinkAction"
       @link-tap="handleLinkTap"
       @image-tap="handleImageTap"
       @long-press-text="handleLongPressText"
@@ -56,11 +57,13 @@ const props = withDefaults(
     baseFontSize?: number | string;
     contentBaseFontSize?: number | string;
     fontSize?: number | string;
+    fontSizeResolver?: (sourcePx: number, rawValue: string) => string | number;
     rootFontSize?: number;
     remScale?: number;
     fontScale?: number;
     theme?: ThemeConfig;
     imageSkeleton?: boolean;
+    imageLinkAction?: 'link' | 'preview' | 'both';
   }>(),
   {
     format: 'html',
@@ -73,7 +76,8 @@ const props = withDefaults(
     className: '',
     style: () => ({}),
     theme: () => ({}),
-    imageSkeleton: true
+    imageSkeleton: true,
+    imageLinkAction: 'link'
   }
 );
 
@@ -105,6 +109,7 @@ const parsedData = computed(() => {
     baseFontSize: effectiveBaseFontSize.value,
     contentBaseFontSize: effectiveContentBaseFontSize.value,
     fontSize: props.fontSize,
+    fontSizeResolver: props.fontSizeResolver,
     cache: props.cache
   });
 });

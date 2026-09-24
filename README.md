@@ -22,27 +22,22 @@
 - 页面回退、列表复用或重新挂载时 **0ms 瞬间还原**，彻底杜绝重复的正则分词、样式内联与 DOM 树构建开销。
 - 支持通过 `cache: false` 禁用，并对外导出 `clearASTCache()` 和 `getASTCacheSize()` 控制接口。
 
-### 2. 🔤 基准字号智能映射与动态累加
-- **基准字号映射**：支持自定义显示基准字号 `baseFontSize`（默认 `15px`）与内容基准字号 `contentBaseFontSize`（默认 `22px`，微信公众号/Quill 常用正文）。
-- **等差层次累加**：内容中每高出/低于基准 1 个字号单位，展示端以目标基准平滑累加（如内容 `22px` → 展示 `15px`，内容 `23px` → 展示 `16px`，内容 `26px` → 展示 `19px`），完美保留富文本层级差。
-- **小程序 20rem 规范转换**：基于微信小程序官方 `375px 屏幕 = 20rem (1rem = 18.75px)` 计算规则，支持 Retina 尺寸折半 (`remScale = 0.5`)；自动保留 1px 发丝边框防丢像素，保留无单位行高倍数。
-
-### 3. 📜 超长图文按需触底追加 (Scroll Append)
+### 2. 📜 超长图文按需触底追加 (Scroll Append)
 - **拒绝首屏卡顿**：支持 `appendMode: 'scroll'` 模式，首屏仅加载首批 chunk（如 15 个根节点）。
 - **视口哨兵探测**：通过底部 `IntersectionObserver` 哨兵自动感知用户滚动，临近视口底部（350px 缓冲带）时才动态挂载下一批节点，极大节省深层 DOM 与内存开销。
 - **平滑空闲调度**：在 `stream` 模式下采用 `requestIdleCallback` 调频，不阻塞主线程手势交互与动画。
 
-### 4. 🖼️ 图片 CLS 零抖动与优雅 Fallback
+### 3. 🖼️ 图片 CLS 零抖动与优雅 Fallback
 - **智能宽高比提取**：自动从微信文章特有的 `data-ratio`、`data-w`/`data-h`、HTML `width`/`height` 及 inline style 计算图片宽高比（`aspectRatio` 与 `paddingBottom` 占位）。
 - **告别排版跳跃（Zero CLS）**：图片在网络加载完成前即精准预占高位，内容不被突然撑开。
 - **容错降级**：图片遇到 404 或网络加载失败时，自动切换为优雅虚线占位与错误提示，绝不撕裂排版。
 - **原生懒加载**：全端开启 `loading="lazy"` / `lazy-load`。
 
-### 5. 🛡️ 纯净模式（Zero-Default-Styles）与全事件接管
+### 4. 🛡️ 纯净模式（Zero-Default-Styles）与全事件接管
 - **组件不设任何强制预设样式**（无强制外边距、无预置灰色背景），样式 100% 完全由富文本内容驱动，保证跨端高度纯净与设计保真。
 - 彻底摒弃受限的原生 `<rich-text>`，全节点采用跨端基元组件递归渲染，100% 支持事件拦截与动态交互。
 
-### 6. 📦 标准预编译产物与现代化单包分发
+### 5. 📦 标准预编译产物与现代化单包分发
 - 使用 `tsup` 预编译打包，提供完整的 **ESM (`.mjs`)**、**CJS (`.js`)** 与 **TypeScript 类型声明 (`.d.ts`)**，开箱即用，无需依赖方强配 Babel/TS 转译规则。
 - 现代化子路径设计：`omni-rich-text/taro`、`omni-rich-text/uni`、`omni-rich-text/react-native`、`omni-rich-text/core`、`omni-rich-text/wechat`。
 
@@ -71,9 +66,9 @@ import { UniversalRichText } from 'omni-rich-text/taro';
 
 export default function ArticleDetail() {
   const htmlContent = `
-    <section style="font-size: 22px;">
-      <h2>文章主标题 (26px)</h2>
-      <p style="font-size: 22px;">这是正文段落，将按基准字号映射显示为 15px。</p>
+    <section>
+      <h2>文章主标题</h2>
+      <p>这是正文段落，完美还原排版样式与视觉设计。</p>
       <img src="https://picsum.photos/800/450" data-ratio="0.5625" alt="技术架构图" />
       <p>支持包含 <a href="https://github.com/Agions/omni-rich-text">外部链接</a> 和自定义高亮。</p>
     </section>
@@ -84,8 +79,6 @@ export default function ArticleDetail() {
       <UniversalRichText
         content={htmlContent}
         mode="wechat"
-        baseFontSize={15}
-        contentBaseFontSize={22}
         appendMode="scroll"
         imageSkeleton
         theme={{
@@ -110,8 +103,6 @@ export default function ArticleDetail() {
     <UniversalRichText
       :content="htmlContent"
       mode="wechat"
-      :base-font-size="15"
-      :content-base-font-size="22"
       :image-skeleton="true"
       :theme="{ linkColor: '#07c160' }"
       webview-path="/pages/webview/index"
@@ -127,7 +118,7 @@ import { ref } from 'vue';
 import { UniversalRichText } from 'omni-rich-text/uni';
 
 const htmlContent = ref(`
-  <p style="font-size: 22px;">欢迎使用 UniApp 跨端富文本适配组件。</p>
+  <p>欢迎使用 UniApp 跨端富文本适配组件。</p>
 `);
 
 function handleLinkTap({ href }: { href: string }) {
@@ -158,8 +149,6 @@ export default function NativeArticle() {
     <ScrollView style={{ flex: 1, padding: 16 }}>
       <UniversalRichText
         content={htmlContent}
-        baseFontSize={15}
-        contentBaseFontSize={22}
         imageSkeleton
         theme={{
           linkColor: '#2563eb',
@@ -191,8 +180,6 @@ export default function NativeArticle() {
 <omni-rich-text
   content="{{htmlContent}}"
   mode="wechat"
-  baseFontSize="{{15}}"
-  contentBaseFontSize="{{22}}"
   theme="{{themeConfig}}"
   bind:linkTap="onLinkTap"
   bind:imageTap="onImageTap"
@@ -206,10 +193,8 @@ export default function NativeArticle() {
 ```ts
 import { parseRichContent, clearASTCache } from 'omni-rich-text/core';
 
-const { ast, galleryList } = parseRichContent('<p style="font-size:22px">Hello <strong>World</strong></p>', {
+const { ast, galleryList } = parseRichContent('<p>Hello <strong>World</strong></p>', {
   mode: 'wechat',
-  baseFontSize: 15,
-  contentBaseFontSize: 22,
   cache: true
 });
 
@@ -226,10 +211,10 @@ console.log(galleryList);  // 全文图片有序 URL 列表
 | `content` | `string` | **必填** | 富文本内容（HTML 或 Markdown 字符串） |
 | `format` | `'html' \| 'markdown'` | `'html'` | 内容格式 |
 | `mode` | `'default' \| 'wechat'` | `'default'` | 渲染模式。`wechat` 模式自动内联 `<style>` 块并适配公众号卡片 |
-| `baseFontSize` | `number \| string` | `15` | **目标显示基准字号**（px）。如设为 15，正文 22px 将按 15px 渲染 |
-| `contentBaseFontSize` | `number \| string` | `22` | **内容基准字号**（px）。文章每递增 1px，展示字号在 baseFontSize 上累加 1px |
 | `rootFontSize` | `number` | `18.75` | 小程序 rem 换算基准（375px 屏宽 20rem 规则，1rem = 18.75px） |
 | `remScale` | `number` | `0.5` | rem 缩放因子。默认 0.5（750 视网膜设计稿尺寸折半适配） |
+| `fontSizeResolver` | `Function` | `undefined` | 外部自定义字号解析函数 `(sourcePx, raw) => string \| number`，支持业务自主规则 |
+| `imageLinkAction` | `'link' \| 'preview' \| 'both'` | `'link'` | 图片带链接时的交互策略：`link`（优先跳转链接，默认）、`preview`（预览大图）、`both` |
 | `appendMode` | `'stream' \| 'scroll'` | `'stream'` | 长文挂载策略：`scroll` 为视口按需触底追加，`stream` 为空闲调频流式 |
 | `cache` | `boolean` | `true` | 是否启用 AST 解析 LRU 内存缓存池（0ms 复用） |
 | `chunked` | `boolean` | `true` | 是否启用分片渐进渲染，防止长文阻塞主线程 |
@@ -279,7 +264,6 @@ npm test
 41 项核心测试覆盖了：
 - 微信公众号真实文章高保真排版还原
 - 尺寸 rem 换算与 1px 发丝边框保护
-- 基准字号等差动态累加算法
 - LRU 缓存命中与失效策略
 - 图片 CLS 尺寸与宽高比提取
 

@@ -28,6 +28,10 @@ export interface NodeRendererProps {
   indexInList?: number;
   /** Parent tag name for context */
   parentTag?: string;
+  /** Enclosing anchor link href if inside <a> */
+  parentLinkHref?: string;
+  /** Action when tapping an image that has a link. 'link': navigate (default), 'preview': open gallery, 'both': both */
+  imageLinkAction?: 'link' | 'preview' | 'both';
   selectable?: boolean;
 }
 
@@ -70,28 +74,70 @@ export function toTaroStyle(styleObj?: Record<string, any>): React.CSSProperties
 const OmniImage: React.FC<{
   node: ASTNode;
   src: string;
+  linkHref?: string;
+  imageLinkAction?: 'link' | 'preview' | 'both';
   imageSkeleton?: boolean;
   imageSkeletonColor?: string;
   onImageClick: (src: string, node: ASTNode) => void;
+  onLinkClick: (href: string, node: ASTNode) => void;
   onNodeEvent?: (eventType: string, node: ASTNode, rawEvent: any) => void;
-}> = ({ node, src, imageSkeleton = true, imageSkeletonColor = '#f1f5f9', onImageClick, onNodeEvent }) => {
+}> = ({
+  node,
+  src,
+  linkHref,
+  imageLinkAction = 'link',
+  imageSkeleton = true,
+  imageSkeletonColor = '#f1f5f9',
+  onImageClick,
+  onLinkClick,
+  onNodeEvent
+}) => {
   const [loaded, setLoaded] = React.useState(false);
   const [hasError, setHasError] = React.useState(false);
 
   const placeholderHeight = node.extra?.placeholderHeight;
   const aspectRatio = node.extra?.aspectRatio;
 
+  const rawWidth = node.styleObj?.width;
+  const isFullWidth = !rawWidth || rawWidth === '100%' || rawWidth.startsWith('100%');
+  const displayStyle = node.styleObj?.display || (isFullWidth ? 'block' : 'inline-block');
+
+  // Strip height and width from node.styleObj so mode="widthFix" works without conflict
+  const rawImgStyle = toTaroStyle(node.styleObj);
+  const { height: _ignoreHeight, width: _ignoreWidth, maxWidth: _ignoreMaxWidth, ...cleanImgStyle } = rawImgStyle as any;
+
+  const effectiveHref = linkHref || node.attrs.href || node.attrs['data-href'];
+
+  const handleTap = (e: any) => {
+    e.stopPropagation();
+    onNodeEvent?.('click', node, e);
+
+    if (effectiveHref && imageLinkAction !== 'preview') {
+      onLinkClick(effectiveHref, node);
+      if (imageLinkAction === 'both') {
+        onImageClick(src, node);
+      }
+    } else {
+      onImageClick(src, node);
+    }
+  };
+
   return (
     <View
       className="omni-image-wrap"
       style={toTaroStyle({
         position: 'relative',
+        display: displayStyle,
+        verticalAlign: 'middle',
         width: node.styleObj?.width || '100%',
         maxWidth: '100%',
+        minWidth: 0,
         boxSizing: 'border-box',
         overflow: 'hidden',
         borderRadius: node.styleObj?.borderRadius,
         margin: node.styleObj?.margin,
+        flex: node.styleObj?.flex,
+        cursor: effectiveHref ? 'pointer' : undefined,
         backgroundColor: imageSkeleton && !loaded && !hasError ? imageSkeletonColor : 'transparent',
         ...(aspectRatio && !loaded
           ? { aspectRatio: String(aspectRatio) }
@@ -99,6 +145,7 @@ const OmniImage: React.FC<{
           ? { paddingBottom: placeholderHeight, height: 0 }
           : {})
       })}
+      onClick={handleTap}
     >
       {hasError ? (
         <View
@@ -127,22 +174,17 @@ const OmniImage: React.FC<{
           lazyLoad={node.attrs['lazy-load'] !== 'false'}
           style={toTaroStyle({
             width: '100%',
+            maxWidth: '100%',
             display: 'block',
             boxSizing: 'border-box',
             opacity: loaded || !imageSkeleton ? 1 : 0,
             transition: 'opacity 0.25s ease-in-out',
-            ...node.styleObj,
-            maxWidth: '100%'
+            ...cleanImgStyle
           })}
           onLoad={() => setLoaded(true)}
           onError={() => {
             setHasError(true);
             setLoaded(true);
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-            onImageClick(src, node);
-            onNodeEvent?.('click', node, e);
           }}
         />
       )}
@@ -163,15 +205,19 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
   theme,
   indexInList,
   parentTag,
+  parentLinkHref,
+  imageLinkAction = 'link',
   selectable = false
 }) => {
   // Helper to render child nodes with forwarded context
-  const renderChild = (child: ASTNode, idx?: number, pTag = node.name) => (
+  const renderChild = (child: ASTNode, idx?: number, pTag = node.name, linkHref = parentLinkHref) => (
     <NodeRenderer
       key={child.id}
       node={child}
       indexInList={idx}
       parentTag={pTag}
+      parentLinkHref={node.name === 'a' ? (node.attrs.href || '') : linkHref}
+      imageLinkAction={imageLinkAction}
       components={components}
       imageSkeleton={imageSkeleton}
       theme={theme}
@@ -336,9 +382,12 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
       <OmniImage
         node={node}
         src={src}
+        linkHref={parentLinkHref}
+        imageLinkAction={imageLinkAction}
         imageSkeleton={imageSkeleton}
         imageSkeletonColor={theme?.imageSkeletonColor}
         onImageClick={onImageClick}
+        onLinkClick={onLinkClick}
         onNodeEvent={onNodeEvent}
       />
     );
@@ -565,11 +614,16 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
   }
 
   // 16. Generic Block Elements (section, div, p, ul, ol, h1-h6, etc.)
+  const isFlex =
+    node.styleObj?.display === 'flex' ||
+    node.styleObj?.display === 'inline-flex';
   return (
     <View
       className={`omni-element omni-${node.name}`}
       style={toTaroStyle({
         maxWidth: '100%',
+        boxSizing: 'border-box',
+        ...(isFlex ? { minWidth: 0 } : {}),
         ...node.styleObj
       })}
       onClick={(e) => onNodeEvent?.('click', node, e)}

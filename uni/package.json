@@ -1,6 +1,0 @@
-{
-  "name": "omni-rich-text/uni",
-  "main": "../src/uni/index.ts",
-  "module": "../src/uni/index.ts",
-  "types": "../src/uni/index.ts"
-}

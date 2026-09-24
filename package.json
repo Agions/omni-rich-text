@@ -1,17 +1,12 @@
 {
   "name": "omni-rich-text",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Cross-platform high-performance rich text rendering engine for Taro, UniApp, React Native, and WeChat Mini Program",
   "author": "",
   "license": "MIT",
   "files": [
     "dist",
     "src",
-    "core",
-    "taro",
-    "uni",
-    "react-native",
-    "rn",
     "README.md",
     "LICENSE"
   ],

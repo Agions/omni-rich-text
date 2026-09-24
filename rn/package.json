@@ -1,6 +1,0 @@
-{
-  "name": "omni-rich-text/rn",
-  "main": "../dist/react-native.js",
-  "module": "../dist/react-native.mjs",
-  "types": "../dist/react-native.d.ts"
-}

@@ -40,6 +40,8 @@ export interface UniversalRichTextProps {
   baseFontSize?: number | string;
   /** Source content base font size in px. Default: 22. For every 1px larger, cumulate onto baseFontSize */
   contentBaseFontSize?: number | string;
+  /** Custom external font size resolver function. If provided, allows full external rule tuning */
+  fontSizeResolver?: (sourcePx: number, rawValue: string) => string | number;
   /** Container text font size (alias, backward compatible). e.g. '1rem', 16, '15px' */
   fontSize?: number | string;
   /** Root font size in px used for rem calculation. Default: 18.75 (WeChat Mini Program 20rem rule) */
@@ -50,6 +52,8 @@ export interface UniversalRichTextProps {
   fontScale?: number;
   /** Theme: override semantic colors for links, blockquote, code, table, list bullets, hr, image skeleton */
   theme?: ThemeConfig;
+  /** Action when tapping an image that has an anchor link. 'link': navigate (default), 'preview': open gallery, 'both': both */
+  imageLinkAction?: 'link' | 'preview' | 'both';
   /** Custom interceptor for link clicks */
   onLinkTap?: (ctx: LinkTapContext) => boolean | void | Promise<boolean | void>;
   /** Event emitted on image tap */

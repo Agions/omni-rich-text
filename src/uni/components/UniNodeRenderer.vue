@@ -53,6 +53,8 @@
       :theme="theme"
       :selectable="selectable"
       :image-skeleton="imageSkeleton"
+      :image-link-action="imageLinkAction"
+      :parent-link-href="node.attrs?.href || ''"
       parent-tag="a"
       v-bind="forwardEvents"
     />
@@ -63,7 +65,7 @@
     v-else-if="node.name === 'img'"
     class="omni-image-wrap"
     :style="imageWrapStyle(node)"
-    @tap.stop="onImageTap"
+    @tap.stop="handleImageTap(node)"
   >
     <view
       v-if="errorImages.has(node.attrs.src || node.attrs['data-src'] || '')"
@@ -245,7 +247,7 @@
   <view
     v-else
     :class="['omni-element', `omni-${node.name}`]"
-    :style="[{ maxWidth: '100%' }, node.styleObj]"
+    :style="[{ maxWidth: '100%', boxSizing: 'border-box' }, (node.styleObj?.display === 'flex' || node.styleObj?.display === 'inline-flex') ? { minWidth: '0' } : {}, node.styleObj]"
     @tap="onNodeTap"
   >
     <uni-node-renderer
@@ -254,6 +256,8 @@
       :node="child"
       :index-in-list="idx"
       :parent-tag="node.name"
+      :parent-link-href="parentLinkHref"
+      :image-link-action="imageLinkAction"
       :theme="theme"
       :selectable="selectable"
       :image-skeleton="imageSkeleton"
@@ -274,15 +278,19 @@ const props = withDefaults(
     theme?: ThemeConfig;
     selectable?: boolean;
     imageSkeleton?: boolean;
+    imageLinkAction?: 'link' | 'preview' | 'both';
     indexInList?: number;
     parentTag?: string;
+    parentLinkHref?: string;
   }>(),
   {
     theme: () => ({}),
     selectable: false,
     imageSkeleton: true,
+    imageLinkAction: 'link',
     indexInList: 0,
-    parentTag: ''
+    parentTag: '',
+    parentLinkHref: ''
   }
 );
 
@@ -314,14 +322,25 @@ function imageWrapStyle(node: ASTNode): Record<string, any> {
   const dataRatio = node.extra?.dataRatio;
   const placeholderHeight = node.extra?.placeholderHeight;
   const aspectRatio = node.extra?.aspectRatio;
+
+  const rawWidth = node.styleObj?.width;
+  const isFullWidth = !rawWidth || rawWidth === '100%' || rawWidth.startsWith('100%');
+  const displayStyle = node.styleObj?.display || (isFullWidth ? 'block' : 'inline-block');
+  const effectiveHref = props.parentLinkHref || node.attrs?.href || node.attrs?.['data-href'];
+
   const style: Record<string, any> = {
     position: 'relative',
+    display: displayStyle,
+    verticalAlign: 'middle',
     width: node.styleObj?.width || '100%',
     maxWidth: '100%',
+    minWidth: '0',
     boxSizing: 'border-box',
     overflow: 'hidden',
     borderRadius: node.styleObj?.borderRadius,
     margin: node.styleObj?.margin,
+    flex: node.styleObj?.flex,
+    cursor: effectiveHref ? 'pointer' : undefined,
     backgroundColor: (props.imageSkeleton && !isLoaded && !isError)
       ? (props.theme.imageSkeletonColor || '#f1f5f9')
       : 'transparent'
@@ -341,6 +360,10 @@ function imageWrapStyle(node: ASTNode): Record<string, any> {
 function imageStyle(node: ASTNode): Record<string, any> {
   const src = node.attrs?.src || node.attrs?.['data-src'] || '';
   const isLoaded = loadedImages.value.has(src);
+  const cleanStyle = { ...(node.styleObj || {}) };
+  delete cleanStyle.height;
+  delete cleanStyle.width;
+  delete cleanStyle.maxWidth;
   return {
     width: '100%',
     maxWidth: '100%',
@@ -348,8 +371,21 @@ function imageStyle(node: ASTNode): Record<string, any> {
     boxSizing: 'border-box',
     opacity: (isLoaded || !props.imageSkeleton) ? 1 : 0,
     transition: 'opacity 0.25s ease-in-out',
-    ...(node.styleObj || {})
+    ...cleanStyle
   };
+}
+
+function handleImageTap(node: ASTNode) {
+  const src = node.attrs?.src || node.attrs?.['data-src'] || '';
+  const effectiveHref = props.parentLinkHref || node.attrs?.href || node.attrs?.['data-href'];
+  if (effectiveHref && props.imageLinkAction !== 'preview') {
+    emit('linkTap', effectiveHref, node);
+    if (props.imageLinkAction === 'both') {
+      emit('imageTap', src, node.extra?.galleryIndex ?? 0, node);
+    }
+  } else {
+    emit('imageTap', src, node.extra?.galleryIndex ?? 0, node);
+  }
 }
 
 function onImageLoad(node: ASTNode) {

@@ -4,6 +4,7 @@
     wx:key="id"
     node="{{item}}"
     theme="{{theme}}"
+    imageLinkAction="{{imageLinkAction}}"
     bind:linkTap="onLinkTap"
     bind:imageTap="onImageTap"
     bind:longPressText="onLongPressText"

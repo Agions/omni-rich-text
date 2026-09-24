@@ -1,6 +1,0 @@
-{
-  "name": "omni-rich-text/taro",
-  "main": "../dist/taro.js",
-  "module": "../dist/taro.mjs",
-  "types": "../dist/taro.d.ts"
-}

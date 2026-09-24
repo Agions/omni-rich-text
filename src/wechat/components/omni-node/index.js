@@ -11,7 +11,11 @@ Component({
     /** Index of this item within a parent list (ul/ol) — used for ordered bullets */
     indexInList: { type: Number, value: 0 },
     /** Parent tag name — passed down so <li> can distinguish ul vs ol context */
-    parentTag: { type: String, value: '' }
+    parentTag: { type: String, value: '' },
+    /** Inherited link href from parent <a> tag */
+    parentLinkHref: { type: String, value: '' },
+    /** Action when tapping an image that has a link: 'link' | 'preview' | 'both' */
+    imageLinkAction: { type: String, value: 'link' }
   },
 
   methods: {
@@ -26,11 +30,27 @@ Component({
 
     /**
      * Fired when an <img> element is tapped.
-     * Propagates { src, index, node } up the component tree.
+     * Propagates { src, index, node } or { href, node } based on imageLinkAction.
      */
     onImageTap(e) {
       const src = e.currentTarget.dataset.src || '';
       const galleryIndex = e.currentTarget.dataset.galleryIndex || 0;
+      const effectiveHref = this.data.node.attrs?.href || this.data.parentLinkHref || '';
+      const action = this.data.imageLinkAction || 'link';
+
+      if (effectiveHref) {
+        if (action === 'preview') {
+          this.triggerEvent('imageTap', { src, index: galleryIndex, node: this.data.node });
+        } else if (action === 'both') {
+          this.triggerEvent('linkTap', { href: effectiveHref, node: this.data.node });
+          this.triggerEvent('imageTap', { src, index: galleryIndex, node: this.data.node });
+        } else {
+          // 'link' (default)
+          this.triggerEvent('linkTap', { href: effectiveHref, node: this.data.node });
+        }
+        return;
+      }
+
       this.triggerEvent('imageTap', { src, index: galleryIndex, node: this.data.node });
     },
 

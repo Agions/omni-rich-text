@@ -34,6 +34,7 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
   className = '',
   style,
   fontSize,
+  fontSizeResolver,
   baseFontSize,
   contentBaseFontSize,
   rootFontSize,
@@ -41,6 +42,7 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
   fontScale,
   components,
   imageSkeleton = true,
+  imageLinkAction = 'link',
   theme,
   onLinkTap,
   onImageTap,
@@ -74,9 +76,10 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
       baseFontSize: effectiveBaseFontSize,
       contentBaseFontSize: effectiveContentBaseFontSize,
       fontSize,
+      fontSizeResolver,
       cache
     });
-  }, [content, format, mode, maxDepth, extractStyles, customTags, effectiveRemScale, effectiveFontScale, effectiveRootFontSize, effectiveBaseFontSize, effectiveContentBaseFontSize, fontSize, cache]);
+  }, [content, format, mode, maxDepth, extractStyles, customTags, effectiveRemScale, effectiveFontScale, effectiveRootFontSize, effectiveBaseFontSize, effectiveContentBaseFontSize, fontSize, fontSizeResolver, cache]);
 
   // 2. Chunking calculation for progressive setData rendering
   const chunkedData = useMemo(() => {
@@ -257,6 +260,7 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
           node={node}
           components={components}
           imageSkeleton={imageSkeleton}
+          imageLinkAction={imageLinkAction}
           theme={theme}
           onLinkClick={handleLinkClick}
           onImageClick={handleImageClick}

@@ -38,6 +38,8 @@ export interface ASTNode {
     isSvg?: boolean;
     /** WeChat-specific tag that should not be rendered (mpvoice, mp-miniprogram, etc.) */
     wxIgnored?: boolean;
+    /** Whether node or container contains multiple images in a single row/flow */
+    isMultiImage?: boolean;
     /** Custom component tag marker */
     isCustom?: boolean;
   };
@@ -114,6 +116,12 @@ export interface ParseOptions {
    * For every 1px increase in content font size, text size accumulates 1px onto baseFontSize.
    */
   contentBaseFontSize?: number | string;
+  /**
+   * Custom external font size resolver function.
+   * If provided, allows complete external control over font-size calculation.
+   * Receives (sourcePx, rawValue) and returns a CSS string (e.g. '16px', '1.1rem') or number.
+   */
+  fontSizeResolver?: (sourcePx: number, rawValue: string) => string | number;
   /**
    * Custom default/base font size alias (backward compatible). e.g. 15, '15px', '1rem'.
    */

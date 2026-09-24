@@ -48,6 +48,12 @@ export interface UniversalRichTextProps {
   /** Font size scaling factor for parsed styles. Default is 1 */
   fontScale?: number;
 
+  /** Custom external font size resolver function */
+  fontSizeResolver?: (sourcePx: number, rawValue: string) => string | number;
+
+  /** Action when tapping an image that has an anchor link. 'link': navigate (default), 'preview': open gallery, 'both': both */
+  imageLinkAction?: 'link' | 'preview' | 'both';
+
   /** Outer container View style (React Native ViewStyle) */
   style?: object;
 

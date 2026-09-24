@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { View, Text, Image, Video, Audio, Button, ScrollView } from '@tarojs/components';
 import { ASTNode, MediaEventPayload, ThemeConfig, serializeSvgToXml, INLINE_TAGS, isAllInline } from '../../core';
 

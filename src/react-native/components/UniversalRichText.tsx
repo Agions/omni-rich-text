@@ -31,6 +31,7 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
   extractStyles,
   chunked = true,
   chunkSize = 15,
+  cache = true,
   theme,
   style,
   fontSize,
@@ -65,9 +66,10 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
       rootFontSize: effectiveRootFontSize,
       baseFontSize: effectiveBaseFontSize,
       contentBaseFontSize: effectiveContentBaseFontSize,
-      fontSize
+      fontSize,
+      cache
     });
-  }, [content, format, mode, maxDepth, extractStyles, effectiveRemScale, effectiveFontScale, effectiveRootFontSize, effectiveBaseFontSize, effectiveContentBaseFontSize, fontSize]);
+  }, [content, format, mode, maxDepth, extractStyles, effectiveRemScale, effectiveFontScale, effectiveRootFontSize, effectiveBaseFontSize, effectiveContentBaseFontSize, fontSize, cache]);
 
   // ── 2. Chunk calculation ───────────────────────────────────────────────────
   const chunkedData = useMemo(() => {

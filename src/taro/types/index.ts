@@ -16,6 +16,14 @@ export interface UniversalRichTextProps {
   extractStyles?: boolean;
   /** Enable progressive chunked rendering for long articles. Default is true */
   chunked?: boolean;
+  /**
+   * Rendering append mode for chunked nodes:
+   * - 'stream': Progressively streams chunks via idle/timer scheduling (default)
+   * - 'scroll': Loads initial chunks on screen, appends remaining chunks as user scrolls near bottom
+   */
+  appendMode?: 'stream' | 'scroll';
+  /** Whether to enable in-memory LRU cache for parse results. Default is true */
+  cache?: boolean;
   /** Number of root blocks rendered per chunk. Default is 15 */
   chunkSize?: number;
   /** Whether text is selectable. Default is false (文本默认不可选中复制) */

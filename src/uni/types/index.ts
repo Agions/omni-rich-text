@@ -15,6 +15,8 @@ export interface UniRichTextProps {
   extractStyles?: boolean;
   /** Enable progressive chunked rendering. Default: true */
   chunked?: boolean;
+  /** Whether to enable in-memory LRU cache for parse results. Default: true */
+  cache?: boolean;
   /** Nodes per chunk. Default: 15 */
   chunkSize?: number;
   /** Whether text nodes are selectable. Default: false (文本默认不可选中复制) */

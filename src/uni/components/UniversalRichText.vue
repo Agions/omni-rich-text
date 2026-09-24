@@ -46,6 +46,7 @@ const props = withDefaults(
     maxDepth?: number;
     extractStyles?: boolean;
     chunked?: boolean;
+    cache?: boolean;
     chunkSize?: number;
     selectable?: boolean;
     webviewPath?: string;
@@ -65,6 +66,7 @@ const props = withDefaults(
     format: 'html',
     mode: 'default',
     chunked: true,
+    cache: true,
     chunkSize: 15,
     selectable: false,
     tabBarList: () => [],
@@ -102,7 +104,8 @@ const parsedData = computed(() => {
     rootFontSize: effectiveRootFontSize.value,
     baseFontSize: effectiveBaseFontSize.value,
     contentBaseFontSize: effectiveContentBaseFontSize.value,
-    fontSize: props.fontSize
+    fontSize: props.fontSize,
+    cache: props.cache
   });
 });
 

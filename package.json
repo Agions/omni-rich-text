@@ -1,10 +1,11 @@
 {
   "name": "omni-rich-text",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Cross-platform high-performance rich text rendering engine for Taro, UniApp, React Native, and WeChat Mini Program",
   "author": "",
   "license": "MIT",
   "files": [
+    "dist",
     "src",
     "README.md",
     "LICENSE"
@@ -12,27 +13,27 @@
   "publishConfig": {
     "access": "public"
   },
-  "main": "./src/core/index.ts",
-  "module": "./src/core/index.ts",
-  "types": "./src/core/index.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/core/index.ts",
-      "import": "./src/core/index.ts",
-      "require": "./src/core/index.ts",
-      "default": "./src/core/index.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "default": "./dist/index.mjs"
     },
     "./core": {
-      "types": "./src/core/index.ts",
-      "import": "./src/core/index.ts",
-      "require": "./src/core/index.ts",
-      "default": "./src/core/index.ts"
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.mjs",
+      "require": "./dist/core.js",
+      "default": "./dist/core.mjs"
     },
     "./taro": {
-      "types": "./src/taro/index.ts",
-      "import": "./src/taro/index.ts",
-      "require": "./src/taro/index.ts",
-      "default": "./src/taro/index.ts"
+      "types": "./dist/taro.d.ts",
+      "import": "./dist/taro.mjs",
+      "require": "./dist/taro.js",
+      "default": "./dist/taro.mjs"
     },
     "./uni": {
       "types": "./src/uni/index.ts",
@@ -41,21 +42,23 @@
       "default": "./src/uni/index.ts"
     },
     "./react-native": {
-      "types": "./src/react-native/index.ts",
-      "import": "./src/react-native/index.ts",
-      "require": "./src/react-native/index.ts",
-      "default": "./src/react-native/index.ts"
+      "types": "./dist/react-native.d.ts",
+      "import": "./dist/react-native.mjs",
+      "require": "./dist/react-native.js",
+      "default": "./dist/react-native.mjs"
     },
     "./rn": {
-      "types": "./src/react-native/index.ts",
-      "import": "./src/react-native/index.ts",
-      "require": "./src/react-native/index.ts",
-      "default": "./src/react-native/index.ts"
+      "types": "./dist/react-native.d.ts",
+      "import": "./dist/react-native.mjs",
+      "require": "./dist/react-native.js",
+      "default": "./dist/react-native.mjs"
     },
     "./wechat/*": "./src/wechat/*"
   },
   "miniprogram": "src/wechat",
   "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build",
     "test": "vitest run src/core/tests",
     "test:watch": "vitest src/core/tests",
     "type-check": "tsc --noEmit",
@@ -69,18 +72,28 @@
     "vue": "^3.2.0"
   },
   "peerDependenciesMeta": {
-    "@tarojs/components": { "optional": true },
-    "@tarojs/taro": { "optional": true },
-    "react": { "optional": true },
-    "react-native": { "optional": true },
-    "vue": { "optional": true }
+    "@tarojs/components": {
+      "optional": true
+    },
+    "@tarojs/taro": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-native": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@tarojs/components": "3.6.40",
     "@tarojs/taro": "3.6.40",
     "@types/react": "^18.2.0",
-    "@types/react-native": "^0.73.0",
     "react": "^18.3.1",
+    "tsup": "^8.5.1",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0",
     "vue": "^3.4.0"

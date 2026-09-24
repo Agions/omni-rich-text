@@ -16,6 +16,7 @@ import {
   DEFAULT_CONTENT_BASE_FONT_SIZE
 } from '../styler/css-inliner';
 import { extractStyleRules, resolveExtractedStyles, ExtractedStyleSheet } from '../styler/wx-style-extractor';
+import { calculateImageDimensions } from '../utils/image';
 
 let idCounter = 0;
 export function generateNodeId(): string {
@@ -238,17 +239,6 @@ function isInsidePre(stack: ASTNode[]): boolean {
         }
       }
 
-      // Pre-calculate image aspect ratio from data-ratio
-      let dataRatio: number | undefined;
-      let placeholderHeight: string | undefined;
-      if (tagName === 'img' && parsedAttrs['data-ratio']) {
-        const ratioNum = parseFloat(parsedAttrs['data-ratio']);
-        if (!isNaN(ratioNum) && ratioNum > 0) {
-          dataRatio = ratioNum;
-          placeholderHeight = `${(ratioNum * 100).toFixed(2)}%`;
-        }
-      }
-
       // Resolve CSS styles (tag default + extracted classes/ids + inline styles)
       const userStyle = parsedAttrs.style || '';
       const extraStyles = resolveExtractedStyles(tagName, parsedAttrs, styleSheet);
@@ -263,6 +253,17 @@ function isInsidePre(stack: ASTNode[]): boolean {
         options.baseFontSize ?? options.fontSize ?? DEFAULT_BASE_FONT_SIZE,
         options.contentBaseFontSize ?? DEFAULT_CONTENT_BASE_FONT_SIZE
       );
+
+      // Pre-calculate image aspect ratio and placeholder height from attrs & style
+      let dataRatio: number | undefined;
+      let placeholderHeight: string | undefined;
+      let aspectRatio: number | undefined;
+      if (tagName === 'img') {
+        const imgDims = calculateImageDimensions(parsedAttrs, styleObj);
+        dataRatio = imgDims.dataRatio;
+        placeholderHeight = imgDims.placeholderHeight;
+        aspectRatio = imgDims.aspectRatio;
+      }
 
       const isWxIgnored = WX_IGNORED_TAGS.has(tagName);
       const isSvg = SVG_TAGS.has(tagName);
@@ -281,6 +282,7 @@ function isInsidePre(stack: ASTNode[]): boolean {
           isSvg,
           wxIgnored: isWxIgnored,
           dataRatio,
+          aspectRatio,
           placeholderHeight
         }
       };

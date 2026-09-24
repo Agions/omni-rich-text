@@ -78,8 +78,8 @@ const OmniImage: React.FC<{
   const [loaded, setLoaded] = React.useState(false);
   const [hasError, setHasError] = React.useState(false);
 
-  const dataRatio = node.extra?.dataRatio;
   const placeholderHeight = node.extra?.placeholderHeight;
+  const aspectRatio = node.extra?.aspectRatio;
 
   return (
     <View
@@ -93,36 +93,59 @@ const OmniImage: React.FC<{
         borderRadius: node.styleObj?.borderRadius,
         margin: node.styleObj?.margin,
         backgroundColor: imageSkeleton && !loaded && !hasError ? imageSkeletonColor : 'transparent',
-        ...(dataRatio && !loaded
-          ? { paddingBottom: placeholderHeight || `${(dataRatio * 100).toFixed(2)}%`, height: 0 }
+        ...(aspectRatio && !loaded
+          ? { aspectRatio: String(aspectRatio) }
+          : placeholderHeight && !loaded
+          ? { paddingBottom: placeholderHeight, height: 0 }
           : {})
       })}
     >
-      <Image
-        className="omni-image"
-        src={src}
-        mode={(node.attrs.mode as any) || 'widthFix'}
-        lazyLoad={node.attrs['lazy-load'] !== 'false'}
-        style={toTaroStyle({
-          width: '100%',
-          display: 'block',
-          boxSizing: 'border-box',
-          opacity: loaded || !imageSkeleton ? 1 : 0,
-          transition: 'opacity 0.25s ease-in-out',
-          ...node.styleObj,
-          maxWidth: '100%'
-        })}
-        onLoad={() => setLoaded(true)}
-        onError={() => {
-          setHasError(true);
-          setLoaded(true);
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-          onImageClick(src, node);
-          onNodeEvent?.('click', node, e);
-        }}
-      />
+      {hasError ? (
+        <View
+          className="omni-image-error"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px 12px',
+            backgroundColor: '#f8fafc',
+            color: '#94a3b8',
+            fontSize: '13px',
+            borderRadius: '4px',
+            border: '1px dashed #cbd5e1',
+            minHeight: '80px',
+            textAlign: 'center'
+          }}
+        >
+          <Text>{node.attrs.alt ? `[图片加载失败: ${node.attrs.alt}]` : '🖼️ 图片加载失败'}</Text>
+        </View>
+      ) : (
+        <Image
+          className="omni-image"
+          src={src}
+          mode={(node.attrs.mode as any) || 'widthFix'}
+          lazyLoad={node.attrs['lazy-load'] !== 'false'}
+          style={toTaroStyle({
+            width: '100%',
+            display: 'block',
+            boxSizing: 'border-box',
+            opacity: loaded || !imageSkeleton ? 1 : 0,
+            transition: 'opacity 0.25s ease-in-out',
+            ...node.styleObj,
+            maxWidth: '100%'
+          })}
+          onLoad={() => setLoaded(true)}
+          onError={() => {
+            setHasError(true);
+            setLoaded(true);
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onImageClick(src, node);
+            onNodeEvent?.('click', node, e);
+          }}
+        />
+      )}
     </View>
   );
 };

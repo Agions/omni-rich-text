@@ -24,6 +24,27 @@ export * from './bridge/platform';
 export * from './dispatcher/link';
 export * from './plugins/markdown';
 export * from './plugins/prism';
+export * from './cache/lru';
+export * from './utils/image';
+
+import { LRUCache, generateCacheKey } from './cache/lru';
+
+// Global LRU cache for parsed AST results (capacity 50)
+const globalASTCache = new LRUCache<string, ParseResult>(50);
+
+/**
+ * Clear the global AST parse cache
+ */
+export function clearASTCache(): void {
+  globalASTCache.clear();
+}
+
+/**
+ * Get current number of items in the AST parse cache
+ */
+export function getASTCacheSize(): number {
+  return globalASTCache.size;
+}
 
 /**
  * Parses and optimizes rich text content (HTML or Markdown) into a normalized AST tree
@@ -31,6 +52,17 @@ export * from './plugins/prism';
 export function parseRichContent(content: string, options: ParseOptions = {}): ParseResult {
   if (!content) {
     return { ast: [], galleryList: [], rawImages: [] };
+  }
+
+  // 0. Check LRU Cache (enabled by default unless options.cache === false)
+  const useCache = options.cache !== false;
+  let cacheKey = '';
+  if (useCache) {
+    cacheKey = generateCacheKey(content, options);
+    const cached = globalASTCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
   }
 
   // 1. Format preprocessing
@@ -50,11 +82,17 @@ export function parseRichContent(content: string, options: ParseOptions = {}): P
   // 5. Extract images and build ordered gallery list
   const { galleryList, rawImages } = extractGallery(optimizedNodes);
 
-  return {
+  const result: ParseResult = {
     ast: optimizedNodes,
     galleryList,
     rawImages
   };
+
+  if (useCache && cacheKey) {
+    globalASTCache.set(cacheKey, result);
+  }
+
+  return result;
 }
 
 /**

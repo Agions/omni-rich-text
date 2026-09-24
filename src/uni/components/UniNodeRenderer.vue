@@ -58,14 +58,22 @@
     />
   </view>
 
-  <!-- 5. Image <img> with skeleton -->
+  <!-- 5. Image <img> with skeleton & error fallback -->
   <view
     v-else-if="node.name === 'img'"
     class="omni-image-wrap"
     :style="imageWrapStyle(node)"
     @tap.stop="onImageTap"
   >
+    <view
+      v-if="errorImages.has(node.attrs.src || node.attrs['data-src'] || '')"
+      class="omni-image-error"
+      style="display: flex; align-items: center; justify-content: center; padding: 24px 12px; background-color: #f8fafc; color: #94a3b8; font-size: 12px; border-radius: 4px; border: 1px dashed #cbd5e1; min-height: 80px; text-align: center;"
+    >
+      <text>{{ node.attrs.alt ? `[图片加载失败: ${node.attrs.alt}]` : '🖼️ 图片加载失败' }}</text>
+    </view>
     <image
+      v-else
       class="omni-image"
       :src="node.attrs.src || node.attrs['data-src']"
       :mode="node.attrs.mode || 'widthFix'"
@@ -304,6 +312,8 @@ function imageWrapStyle(node: ASTNode): Record<string, any> {
   const isLoaded = loadedImages.value.has(src);
   const isError = errorImages.value.has(src);
   const dataRatio = node.extra?.dataRatio;
+  const placeholderHeight = node.extra?.placeholderHeight;
+  const aspectRatio = node.extra?.aspectRatio;
   const style: Record<string, any> = {
     position: 'relative',
     width: node.styleObj?.width || '100%',
@@ -316,7 +326,12 @@ function imageWrapStyle(node: ASTNode): Record<string, any> {
       ? (props.theme.imageSkeletonColor || '#f1f5f9')
       : 'transparent'
   };
-  if (dataRatio && !isLoaded) {
+  if (aspectRatio && !isLoaded) {
+    style.aspectRatio = String(aspectRatio);
+  } else if (placeholderHeight && !isLoaded) {
+    style.paddingBottom = placeholderHeight;
+    style.height = 0;
+  } else if (dataRatio && !isLoaded) {
     style.paddingBottom = `${(dataRatio * 100).toFixed(2)}%`;
     style.height = 0;
   }

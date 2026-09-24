@@ -30,6 +30,8 @@ export interface ASTNode {
     depth?: number;
     /** WeChat image aspect ratio from data-ratio attribute */
     dataRatio?: number;
+    /** Image aspect ratio (width / height or dataRatio) */
+    aspectRatio?: number;
     /** Pre-calculated placeholder height based on data-ratio */
     placeholderHeight?: string;
     /** SVG element marker */
@@ -116,6 +118,10 @@ export interface ParseOptions {
    * Custom default/base font size alias (backward compatible). e.g. 15, '15px', '1rem'.
    */
   fontSize?: number | string;
+  /**
+   * Whether to enable LRU caching of parse results. Defaults to true.
+   */
+  cache?: boolean;
 }
 
 export interface ParseResult {

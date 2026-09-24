@@ -21,6 +21,9 @@ export interface UniversalRichTextProps {
   /** Enable progressive chunked rendering for long articles. Default: true */
   chunked?: boolean;
 
+  /** Whether to enable in-memory LRU cache for parse results. Default: true */
+  cache?: boolean;
+
   /** Number of root AST blocks rendered per chunk iteration. Default: 15 */
   chunkSize?: number;
 

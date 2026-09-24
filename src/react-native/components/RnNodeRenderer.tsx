@@ -37,6 +37,7 @@ const OmniImage: React.FC<OmniImageProps> = ({
 }) => {
   const opacity = React.useRef(new Animated.Value(imageSkeleton ? 0 : 1)).current;
   const [loaded, setLoaded] = React.useState(!imageSkeleton);
+  const [hasError, setHasError] = React.useState(false);
 
   const handleLoad = () => {
     setLoaded(true);
@@ -48,16 +49,12 @@ const OmniImage: React.FC<OmniImageProps> = ({
   };
 
   const handleError = () => {
-    // Still reveal the (broken) image rather than leaving a skeleton forever
+    setHasError(true);
     setLoaded(true);
-    Animated.timing(opacity, {
-      toValue: 1,
-      duration: 0,
-      useNativeDriver: true
-    }).start();
   };
 
   const dataRatio = node.extra?.dataRatio;
+  const aspectRatio = node.extra?.aspectRatio || (dataRatio ? 1 / dataRatio : undefined);
   const nodeStyle = cssToRn(node.styleObj);
 
   return (
@@ -65,18 +62,38 @@ const OmniImage: React.FC<OmniImageProps> = ({
       <View
         style={[
           styles.imageWrap,
-          imageSkeleton && !loaded ? { backgroundColor: imageSkeletonColor } : undefined,
-          dataRatio ? { aspectRatio: 1 / dataRatio } : undefined,
+          imageSkeleton && !loaded && !hasError ? { backgroundColor: imageSkeletonColor } : undefined,
+          aspectRatio ? { aspectRatio } : undefined,
           nodeStyle as any
         ]}
       >
-        <Animated.Image
-          source={{ uri: src }}
-          style={[styles.image, { opacity }]}
-          resizeMode="contain"
-          onLoad={handleLoad}
-          onError={handleError}
-        />
+        {hasError ? (
+          <View
+            style={{
+              paddingVertical: 20,
+              paddingHorizontal: 12,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: '#f8fafc',
+              borderRadius: 4,
+              borderWidth: 1,
+              borderColor: '#e2e8f0',
+              borderStyle: 'dashed'
+            }}
+          >
+            <Text style={{ fontSize: 12, color: '#94a3b8' }}>
+              {node.attrs.alt ? `[图片加载失败: ${node.attrs.alt}]` : '🖼️ 图片加载失败'}
+            </Text>
+          </View>
+        ) : (
+          <Animated.Image
+            source={{ uri: src }}
+            style={[styles.image, { opacity }]}
+            resizeMode="contain"
+            onLoad={handleLoad}
+            onError={handleError}
+          />
+        )}
       </View>
     </Pressable>
   );

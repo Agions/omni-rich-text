@@ -25,6 +25,8 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
   extractStyles,
   chunked = true,
   chunkSize = 15,
+  appendMode = 'stream',
+  cache = true,
   selectable = false,
   webviewPath,
   tabBarList = [],
@@ -57,7 +59,7 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
     return components ? Object.keys(components).map((k) => k.toLowerCase()) : undefined;
   }, [components]);
 
-  // 1. Parse and optimize rich content to AST & Gallery
+  // 1. Parse and optimize rich content to AST & Gallery (with LRU Cache)
   const { ast, galleryList } = useMemo(() => {
     return parseRichContent(content, {
       format,
@@ -70,9 +72,10 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
       rootFontSize: effectiveRootFontSize,
       baseFontSize: effectiveBaseFontSize,
       contentBaseFontSize: effectiveContentBaseFontSize,
-      fontSize
+      fontSize,
+      cache
     });
-  }, [content, format, mode, maxDepth, extractStyles, customTags, effectiveRemScale, effectiveFontScale, effectiveRootFontSize, effectiveBaseFontSize, effectiveContentBaseFontSize, fontSize]);
+  }, [content, format, mode, maxDepth, extractStyles, customTags, effectiveRemScale, effectiveFontScale, effectiveRootFontSize, effectiveBaseFontSize, effectiveContentBaseFontSize, fontSize, cache]);
 
   // 2. Chunking calculation for progressive setData rendering
   const chunkedData = useMemo(() => {
@@ -81,33 +84,91 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
   }, [ast, chunked, chunkSize]);
 
   const [streamedNodes, setStreamedNodes] = useState<ASTNode[]>([]);
+  const [loadedChunkCount, setLoadedChunkCount] = useState(0);
+  const sentinelId = useMemo(() => `omni_sentinel_${Math.random().toString(36).substring(2, 8)}`, []);
 
-  // 3. Progressive chunk streaming
+  // 3. Progressive chunk streaming / Scroll-driven append
   useEffect(() => {
     if (!chunked || !chunkedData || chunkedData.remaining.length === 0) {
       setStreamedNodes([]);
+      setLoadedChunkCount(0);
       return;
     }
 
     setStreamedNodes([]);
-    let chunkIdx = 0;
-    let timer: any = null;
+    setLoadedChunkCount(0);
+    const totalRemaining = chunkedData.remaining.length;
 
-    const streamNextBatch = () => {
-      if (chunkIdx < chunkedData.remaining.length) {
-        const batch = chunkedData.remaining[chunkIdx];
-        chunkIdx++;
-        setStreamedNodes((prev) => [...prev, ...batch]);
-        timer = setTimeout(streamNextBatch, 80);
-      }
-    };
+    if (appendMode === 'scroll') {
+      let observer: any = null;
+      let currentIdx = 0;
 
-    timer = setTimeout(streamNextBatch, 60);
+      const setupObserver = () => {
+        try {
+          if (typeof (Taro as any).createIntersectionObserver === 'function') {
+            observer = (Taro as any).createIntersectionObserver(undefined, { thresholds: [0] });
+            observer.relativeToViewport({ bottom: 350 }).observe(`#${sentinelId}`, (res: any) => {
+              if (res.intersectionRatio > 0 && currentIdx < totalRemaining) {
+                const nextBatch = chunkedData.remaining[currentIdx];
+                currentIdx++;
+                setStreamedNodes((prev) => [...prev, ...nextBatch]);
+                setLoadedChunkCount(currentIdx);
+                if (currentIdx >= totalRemaining && observer) {
+                  observer.disconnect();
+                }
+              }
+            });
+          }
+        } catch {
+          // Fallback if observer is unsupported
+        }
+      };
 
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
-  }, [chunked, chunkedData]);
+      const timer = setTimeout(setupObserver, 150);
+
+      return () => {
+        clearTimeout(timer);
+        if (observer && observer.disconnect) observer.disconnect();
+      };
+    } else {
+      // Stream mode: schedule batch renders using requestIdleCallback / setTimeout
+      let chunkIdx = 0;
+      let timer: any = null;
+
+      const schedule = (cb: () => void) => {
+        if (typeof (globalThis as any).requestIdleCallback === 'function') {
+          return (globalThis as any).requestIdleCallback(cb, { timeout: 100 });
+        }
+        return setTimeout(cb, 60);
+      };
+
+      const cancelSchedule = (id: any) => {
+        if (typeof (globalThis as any).cancelIdleCallback === 'function') {
+          (globalThis as any).cancelIdleCallback(id);
+        } else {
+          clearTimeout(id);
+        }
+      };
+
+      const streamNextBatch = () => {
+        if (chunkIdx < totalRemaining) {
+          const batch = chunkedData.remaining[chunkIdx];
+          chunkIdx++;
+          setStreamedNodes((prev) => [...prev, ...batch]);
+          setLoadedChunkCount(chunkIdx);
+          if (chunkIdx < totalRemaining) {
+            timer = schedule(streamNextBatch);
+          }
+        }
+      };
+
+      timer = setTimeout(streamNextBatch, 50);
+
+      return () => {
+        cancelSchedule(timer);
+      };
+    }
+  }, [chunked, chunkedData, appendMode, sentinelId]);
 
   // Display nodes list
   const displayNodes = useMemo(() => {
@@ -205,6 +266,15 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
           selectable={selectable}
         />
       ))}
+
+      {/* Scroll-driven append sentinel */}
+      {appendMode === 'scroll' && chunkedData && loadedChunkCount < chunkedData.remaining.length && (
+        <View
+          id={sentinelId}
+          className="omni-scroll-sentinel"
+          style={{ width: '100%', height: '1px', opacity: 0, pointerEvents: 'none' }}
+        />
+      )}
 
       {/* H5 Preview Lightbox */}
       <H5Lightbox

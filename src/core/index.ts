@@ -3,7 +3,7 @@
  */
 
 import { ASTNode, ParseOptions, ParseResult } from './types/ast';
-import { parseHtml } from './lexer/html-parser';
+import { parseHtml, detectArticleThemeBg } from './lexer/html-parser';
 import { optimizeAST } from './optimizer/tree-flattener';
 import { extractGallery } from './gallery/image-extractor';
 import { markdownToHtml } from './plugins/markdown';
@@ -82,10 +82,14 @@ export function parseRichContent(content: string, options: ParseOptions = {}): P
   // 5. Extract images and build ordered gallery list
   const { galleryList, rawImages } = extractGallery(optimizedNodes);
 
+  // 6. Detect article theme background color
+  const themeBgColor = detectArticleThemeBg(optimizedNodes);
+
   const result: ParseResult = {
     ast: optimizedNodes,
     galleryList,
-    rawImages
+    rawImages,
+    themeBgColor
   };
 
   if (useCache && cacheKey) {

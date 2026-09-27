@@ -408,4 +408,58 @@ describe('WeChat Official Account Article Parsing & Fidelity', () => {
       'https://example.com/grid4.png'
     ]);
   });
+
+  // Scenario 13: Article Theme Background Detection & Full-Bleed Coverage
+  it('should detect dominant article theme background color and neutralize outer root padding', () => {
+    const html = `
+      <section style="padding: 0px 10px; box-sizing: border-box; font-size: 16px;">
+        <section style="text-align: center; margin: 10px 0px;">
+          <img src="https://example.com/banner.jpg" style="width: 100%;" />
+        </section>
+        <section style="display: flex; flex-flow: row;">
+          <section style="width: 100%; flex: 0 0 auto; background-color: rgb(247, 244, 234);">
+            <p>第一段内容</p>
+          </section>
+        </section>
+        <p><br /></p>
+        <section style="display: flex; flex-flow: row;">
+          <section style="width: 100%; flex: 0 0 auto; background-color: rgb(247, 244, 234);">
+            <p>第二段内容</p>
+          </section>
+        </section>
+        <section style="display: flex; flex-flow: row;">
+          <section style="width: 95%; background-color: rgb(255, 255, 255); border-radius: 8px;">
+            <p>白色卡片内容</p>
+          </section>
+        </section>
+        <section style="display: flex; flex-flow: row;">
+          <section style="width: 100%; flex: 0 0 auto; background-color: rgb(247, 244, 234);">
+            <p>第三段内容</p>
+          </section>
+        </section>
+      </section>
+    `;
+
+    const result = parseRichContent(html, { mode: 'wechat' });
+    expect(result.themeBgColor).toBe('rgb(247, 244, 234)');
+
+    const root = result.ast[0];
+    expect(root.name).toBe('section');
+    // Root section should inherit theme background
+    expect(root.styleObj['background-color']).toBe('rgb(247, 244, 234)');
+    // Outer horizontal padding should be neutralized so background and images stretch 100% full-bleed
+    expect(root.styleObj['padding-left']).toBe('0');
+    expect(root.styleObj['padding-right']).toBe('0');
+
+    // Single-child flex rows with width: 100% should expand with flex: 1 1 0%
+    const flexSection1 = root.children?.[1];
+    const innerCol1 = flexSection1?.children?.[0];
+    expect(innerCol1?.styleObj['flex']).toBe('1 1 0%');
+    expect(innerCol1?.styleObj['width']).toBe('100%');
+
+    // White card keeps its white background and border-radius
+    const cardSection = root.children?.[4];
+    const cardInner = cardSection?.children?.[0];
+    expect(cardInner?.styleObj['background-color']).toBe('rgb(255, 255, 255)');
+  });
 });

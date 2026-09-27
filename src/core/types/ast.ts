@@ -141,4 +141,6 @@ export interface ParseResult {
   galleryList: string[];
   /** Detailed metadata for all images */
   rawImages: ImageGalleryItem[];
+  /** Detected dominant article theme background color (if any) */
+  themeBgColor?: string;
 }

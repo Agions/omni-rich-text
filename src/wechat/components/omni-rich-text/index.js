@@ -261,7 +261,7 @@ Component({
         return;
       }
 
-      const { ast, galleryList } = parseRichContent(content, {
+      const { ast, galleryList, themeBgColor } = parseRichContent(content, {
         format: 'html',
         mode: this.data.mode,
         extractStyles: this.data.extractStyles,
@@ -274,7 +274,11 @@ Component({
         fontSizeResolver: this.data.fontSizeResolver
       });
 
-      this.setData({ galleryList });
+      const updateData = { galleryList, themeBgColor: themeBgColor || '' };
+      if (themeBgColor) {
+        updateData.containerStyle = this.data.containerStyle + ';background-color:' + themeBgColor + ';';
+      }
+      this.setData(updateData);
       this._setNodes(ast);
     },
 

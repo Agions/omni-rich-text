@@ -453,6 +453,18 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
             if (child.name !== 'img') {
               optimizeColumnDescendants(child, true);
             }
+          } else if (elemChildren.length === 1) {
+            // When a flex row has only 1 child and it has width: 100% (or background), ensure it fills the container
+            const onlyChild = elemChildren[0];
+            const w = onlyChild.styleObj?.width;
+            if (!w || w === '100%' || w.endsWith('100%')) {
+              onlyChild.styleObj['flex'] = '1 1 0%';
+              onlyChild.styleObj['width'] = '100%';
+              onlyChild.styleObj['flex-shrink'] = '1';
+            } else if (onlyChild.styleObj.flex === '0 0 auto') {
+              onlyChild.styleObj.flex = '0 1 auto';
+              onlyChild.styleObj['flex-shrink'] = '1';
+            }
           } else if (child.styleObj.flex === '0 0 auto') {
             child.styleObj.flex = '0 1 auto';
             child.styleObj['flex-shrink'] = '1';
@@ -520,4 +532,101 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
       }
     }
   }
+
+  // 4. Post-process top-level article container:
+  // Detect theme background and neutralize outer padding (0px 10px WeChat gutter)
+  const themeBg = detectArticleThemeBg(nodes);
+  for (const root of nodes) {
+    if (root.type === 'element' && (root.name === 'section' || root.name === 'div')) {
+      const children = root.children?.filter((c) => c.type === 'element') || [];
+      const hasFullWidthBg = children.some((c) => {
+        const bg = c.styleObj?.['background-color'] || c.styleObj?.['background'] ||
+          c.children?.[0]?.styleObj?.['background-color'] || c.children?.[0]?.styleObj?.['background'];
+        return bg && bg !== 'transparent' && !bg.includes('rgba(255, 255, 255, 0)');
+      });
+
+      if (themeBg || hasFullWidthBg) {
+        if (themeBg && (!root.styleObj['background-color'] || root.styleObj['background-color'] === 'transparent')) {
+          root.styleObj['background-color'] = themeBg;
+        }
+
+        root.styleObj['padding-left'] = '0';
+        root.styleObj['padding-right'] = '0';
+        if (root.styleObj['padding']) {
+          const parts = root.styleObj['padding'].trim().split(/\s+/);
+          if (parts.length === 2) {
+            root.styleObj['padding'] = `${parts[0]} 0`;
+          } else if (parts.length === 4) {
+            root.styleObj['padding'] = `${parts[0]} 0 ${parts[2]} 0`;
+          } else {
+            root.styleObj['padding'] = '0';
+          }
+        }
+        root.styleStr = stringifyStyleObject(root.styleObj);
+      }
+    }
+  }
+}
+
+/**
+ * Detects the dominant theme background color of a WeChat article (if any).
+ * Articles designed in tools like Xiumi or 135 often apply the theme background color
+ * (e.g. beige #f7f4ea) repeatedly to major content sections instead of the body.
+ */
+export function detectArticleThemeBg(nodes: ASTNode[]): string | undefined {
+  const bgScores: Record<string, number> = {};
+
+  function isColored(bg: string | undefined): boolean {
+    if (!bg) return false;
+    const lower = bg.trim().toLowerCase();
+    if (
+      lower === 'transparent' ||
+      lower === 'none' ||
+      lower === 'inherit' ||
+      lower === 'initial' ||
+      lower === 'currentcolor' ||
+      lower.startsWith('rgba(0,') ||
+      lower.startsWith('rgba(255, 255, 255, 0') ||
+      lower === 'white' ||
+      lower === '#fff' ||
+      lower === '#ffffff' ||
+      lower === 'rgb(255, 255, 255)' ||
+      lower.startsWith('rgb(255, 255, 255')
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  function scoreNodes(list: ASTNode[], depth: number) {
+    for (const node of list) {
+      const bg = node.styleObj?.['background-color'] || node.styleObj?.['background'];
+      if (isColored(bg)) {
+        const weight = depth <= 2 ? 3 : 1;
+        const width = node.styleObj?.['width'];
+        const isFull = !width || width === '100%' || width.endsWith('100%');
+        const score = weight + (isFull ? 2 : 0);
+        bgScores[bg!] = (bgScores[bg!] || 0) + score;
+      }
+      if (node.children && node.children.length > 0) {
+        scoreNodes(node.children, depth + 1);
+      }
+    }
+  }
+
+  scoreNodes(nodes, 0);
+
+  let bestBg: string | undefined;
+  let maxScore = 0;
+  for (const [bg, score] of Object.entries(bgScores)) {
+    if (score > maxScore) {
+      maxScore = score;
+      bestBg = bg;
+    }
+  }
+
+  if (bestBg && maxScore >= 4) {
+    return bestBg;
+  }
+  return undefined;
 }

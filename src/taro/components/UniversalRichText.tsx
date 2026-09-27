@@ -63,7 +63,7 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
   }, [components]);
 
   // 1. Parse and optimize rich content to AST & Gallery (with LRU Cache)
-  const { ast, galleryList } = useMemo(() => {
+  const { ast, galleryList, themeBgColor } = useMemo(() => {
     return parseRichContent(content, {
       format,
       mode,
@@ -246,6 +246,7 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
     fontSize: resolvedFontSize,
     userSelect: selectable ? 'text' : 'none',
     WebkitUserSelect: selectable ? 'text' : 'none',
+    backgroundColor: (style as any)?.backgroundColor || themeBgColor,
     ...style
   };
 

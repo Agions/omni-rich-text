@@ -57,7 +57,7 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
   const effectiveContentBaseFontSize = Number(contentBaseFontSize ?? theme?.contentBaseFontSize ?? DEFAULT_CONTENT_BASE_FONT_SIZE);
 
   // ── 1. Parse & optimize content → AST ─────────────────────────────────────
-  const { ast, galleryList } = useMemo(() => {
+  const { ast, galleryList, themeBgColor } = useMemo(() => {
     return parseRichContent(content, {
       format,
       mode,
@@ -182,7 +182,7 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
 
   // ── 5. Render ──────────────────────────────────────────────────────────────
   return (
-    <View style={[{ maxWidth: '100%' }, style as any]}>
+    <View style={[{ maxWidth: '100%', backgroundColor: (style as any)?.backgroundColor || themeBgColor }, style as any]}>
       {displayNodes.map((node) => (
         <RnNodeRenderer
           key={node.id}

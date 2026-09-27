@@ -203,6 +203,7 @@ const containerStyle = computed(() => {
     effectiveBaseFontSize.value
   );
 
+  const themeBgColor = parsedData.value.themeBgColor;
   const base: Record<string, any> = {
     boxSizing: 'border-box',
     width: '100%',
@@ -210,7 +211,8 @@ const containerStyle = computed(() => {
     wordBreak: 'break-word',
     fontSize: resolvedFontSize,
     userSelect: props.selectable ? 'text' : 'none',
-    WebkitUserSelect: props.selectable ? 'text' : 'none'
+    WebkitUserSelect: props.selectable ? 'text' : 'none',
+    backgroundColor: props.style?.backgroundColor || themeBgColor
   };
   return { ...base, ...props.style };
 });

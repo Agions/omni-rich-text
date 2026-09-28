@@ -1,134 +1,10 @@
 import { useState } from "react";
-import { View, Text, Textarea } from "@tarojs/components";
+import { View, Text } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { UniversalRichText } from "omni-rich-text/taro";
 import { LONG_ARTICLE_SAMPLE } from "./long-article";
 import { EXHIBITION_SAMPLE } from "./exhibition-sample";
 import { ProductCard } from "../../components/ProductCard";
-
-const DEFAULT_CUSTOM_HTML = `<section style="padding: 16px; background: #ffffff; border-radius: 8px;">
-  <!-- 公众号头部卡片 -->
-  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid #07c160;">
-    <div style="display: flex; align-items: center;">
-      <svg viewBox="0 0 24 24" width="22" height="22" style="margin-right: 8px;">
-        <circle cx="12" cy="12" r="11" fill="#07c160" />
-        <path d="M7 12l3 3 7-7" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-      </svg>
-      <h2 style="color: #222222; margin: 0; font-size: 18px; font-weight: bold;">自定义 HTML 实时渲染演示</h2>
-    </div>
-    <span style="background: #e6fcf5; color: #07c160; font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: bold;">实时同步</span>
-  </div>
-
-  <p style="color: #333333; line-height: 1.8; margin: 0 0 12px 0;">
-    在此区域输入的任意 <strong>HTML</strong> 将在下方<strong>实时解析并呈现</strong>。你可以随意在上方的编辑框中输入或粘贴 HTML 代码测试排版渲染效果！
-  </p>
-
-  <!-- 引用框与行内样式标签 -->
-  <blockquote style="margin: 12px 0; padding: 10px 14px; background-color: #f7f9fa; border-left: 4px solid #07c160; border-radius: 0 6px 6px 0;">
-    <p style="color: #555555; font-size: 14px; line-height: 1.6; margin: 0;">
-      💡 <strong>特性支持：</strong>
-      <span>完整支持 <span style="color: #07c160; font-weight: bold;">CSS 行内样式</span>、图片 <code>data-ratio</code> 自适应防抖动、SVG 图标、表格以及自定义组件（如 <code>&lt;product-card&gt;</code>）。</span>
-    </p>
-  </blockquote>
-
-  <!-- 微信自适应图文 (带宽高比) -->
-  <figure style="margin: 16px 0; text-align: center;">
-    <img
-      src="https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=800&auto=format&fit=crop"
-      data-ratio="0.66"
-      alt="自适应图片演示"
-      style="border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); width: 100%;"
-    />
-    <figcaption style="font-size: 12px; color: #888888; margin-top: 6px;">
-      图：实时渲染微信文章标准图片（支持点击呼起画廊预览）
-    </figcaption>
-  </figure>
-
-  <!-- 自定义商品好物卡片 -->
-  <section style="margin: 16px 0;">
-    <product-card
-      title="跨端富文本实战案例"
-      subtitle="多端一致的高保真公众号排版解析方案"
-      price="68.00"
-      original-price="128.00"
-      tag="热销推荐"
-      image="https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&auto=format&fit=crop"
-      link="/pages/detail/goods?id=666"
-    ></product-card>
-  </section>
-</section>`;
-
-const PRESET_TEMPLATES = [
-  {
-    label: "🇧🇷 巴西展会图文(真实样本)",
-    content: EXHIBITION_SAMPLE,
-  },
-  {
-    label: "微信组件卡片",
-    content: DEFAULT_CUSTOM_HTML,
-  },
-  {
-    label: "微信图文卡片",
-    content: `<section style="padding: 16px; background: linear-gradient(135deg, #f0fdf4 0%, #e6fcf5 100%); border: 1px solid #bbf7d0; border-radius: 10px; margin: 8px 0;">
-  <h3 style="color: #059669; margin: 0 0 8px 0; font-size: 16px; font-weight: bold;">
-    🌿 微信风格渐变卡片
-  </h3>
-  <p style="color: #374151; font-size: 14px; line-height: 1.7; margin: 0 0 10px 0;">
-    这是一段带微圆角和柔和投影的微信公众号排版样式，支持嵌套 <span style="background: #fef08a; padding: 2px 6px; border-radius: 3px; color: #854d0e;">重点高亮标签</span>。
-  </p>
-  <ul style="padding-left: 20px; margin: 0; color: #4b5563; font-size: 13px; line-height: 1.8;">
-    <li>原生 CSS 样式精准还原</li>
-    <li>无缝兼容微信小程序原生端与 H5</li>
-  </ul>
-</section>`,
-  },
-  {
-    label: "数据对比表格",
-    content: `<div style="overflow-x: auto; margin: 10px 0;">
-  <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-    <thead>
-      <tr style="background-color: #f8fafc;">
-        <th style="padding: 10px; border: 1px solid #e2e8f0; text-align: left; color: #334155;">特性</th>
-        <th style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; color: #334155;">传统富文本</th>
-        <th style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; color: #07c160;">Universal RT</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td style="padding: 8px 10px; border: 1px solid #e2e8f0;">微信排版保真度</td>
-        <td style="padding: 8px 10px; border: 1px solid #e2e8f0; text-align: center; color: #ef4444;">部分丢失</td>
-        <td style="padding: 8px 10px; border: 1px solid #e2e8f0; text-align: center; color: #07c160; font-weight: bold;">100% 像素级还原</td>
-      </tr>
-      <tr>
-        <td style="padding: 8px 10px; border: 1px solid #e2e8f0;">实时在线编辑渲染</td>
-        <td style="padding: 8px 10px; border: 1px solid #e2e8f0; text-align: center; color: #94a3b8;">不支持</td>
-        <td style="padding: 8px 10px; border: 1px solid #e2e8f0; text-align: center; color: #07c160; font-weight: bold;">毫秒级实时响应</td>
-      </tr>
-    </tbody>
-  </table>
-</div>`,
-  },
-  {
-    label: "商品组件插槽",
-    content: `<div style="padding: 8px 0;">
-  <h4 style="color: #333; margin: 0 0 8px 0; font-size: 15px;">精选好物推荐：</h4>
-  <product-card
-    title="跨端富文本实战案例"
-    subtitle="多端一致的高保真公众号排版解析方案"
-    price="68.00"
-    original-price="128.00"
-    tag="热销推荐"
-    image="https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&auto=format&fit=crop"
-    link="/pages/detail/goods?id=666"
-  ></product-card>
-</div>`,
-  },
-  {
-    label: "清空",
-    content: "",
-  },
-];
-
 const WX_ARTICLE_SAMPLE = `
 <div id="js_article" class="rich_media">
   <div id="js_top_ad_area" class="top_banner"></div>
@@ -306,37 +182,27 @@ const MD_SAMPLE = `
 [点击查看内部商品页](/pages/detail/goods?from=markdown)
 `;
 
-type ModeType = "custom" | "long_article" | "wechat" | "html" | "markdown";
+type ModeType = "wechat" | "exhibition" | "long_article" | "html" | "markdown";
 
 export default function Index() {
-  const [mode, setMode] = useState<ModeType>("custom");
-  const [customHtml, setCustomHtml] = useState<string>(EXHIBITION_SAMPLE);
-  const [showEditor, setShowEditor] = useState<boolean>(true);
+  const [mode, setMode] = useState<ModeType>("wechat");
   const [eventLog, setEventLog] = useState<string>("等待交互事件...");
   const [fontScale, setFontScale] = useState<number>(1.0);
   const [fontSize, setFontSize] = useState<string>("1rem");
 
   const getContent = () => {
     switch (mode) {
-      case "custom":
-        return customHtml || "<p style='color:#999;font-style:italic;'>（内容为空，请在上方输入框键入 HTML 字符串）</p>";
-      case "long_article":
-        return LONG_ARTICLE_SAMPLE;
       case "wechat":
         return WX_ARTICLE_SAMPLE;
+      case "exhibition":
+        return EXHIBITION_SAMPLE;
+      case "long_article":
+        return LONG_ARTICLE_SAMPLE;
       case "html":
         return HTML_SAMPLE;
       case "markdown":
         return MD_SAMPLE;
     }
-  };
-
-  const loadCurrentToEditor = () => {
-    const current = getContent();
-    setCustomHtml(current);
-    setMode("custom");
-    setShowEditor(true);
-    Taro.showToast({ title: "已载入当前模板至编辑器", icon: "none" });
   };
 
   return (
@@ -360,9 +226,9 @@ export default function Index() {
         }}
       >
         {[
-          { key: "custom", label: "✍️ 自定义 HTML (实时渲染)" },
-          { key: "long_article", label: "🔥 万字深度长文 (流式)" },
           { key: "wechat", label: "📰 微信公众号" },
+          { key: "exhibition", label: "🇧🇷 展会图文案例" },
+          { key: "long_article", label: "🔥 万字深度长文 (流式)" },
           { key: "html", label: "HTML 基础" },
           { key: "markdown", label: "Markdown" },
         ].map((tab) => {
@@ -396,216 +262,6 @@ export default function Index() {
           );
         })}
       </View>
-
-      {/* 快捷操作条：非自定义模式下快速载入编辑器 */}
-      {mode !== "custom" && (
-        <View
-          style={{
-            display: "flex",
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "8px 12px",
-            backgroundColor: "#eff6ff",
-            borderRadius: 8,
-            marginBottom: 10,
-            border: "1px solid #bfdbfe",
-            flexWrap: "wrap",
-            gap: 8,
-          }}
-        >
-          <Text style={{ fontSize: 12, color: "#1e40af" }}>
-            💡 当前正处于预设模版浏览状态，可随时载入编辑框微调
-          </Text>
-          <View
-            onClick={loadCurrentToEditor}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "4px 12px",
-              borderRadius: 4,
-              fontSize: 12,
-              backgroundColor: "#2563eb",
-              color: "#ffffff",
-              cursor: "pointer",
-              fontWeight: "bold",
-              userSelect: "none",
-            }}
-          >
-            ✏️ 载入此模板至编辑器并自由微调
-          </View>
-        </View>
-      )}
-
-      {/* HTML 源码输入与实时编辑卡片 */}
-      {(mode === "custom" || showEditor) && (
-        <View
-          style={{
-            backgroundColor: "#1e293b",
-            borderRadius: 8,
-            padding: 12,
-            marginBottom: 12,
-            boxShadow: "0 4px 12px rgba(15, 23, 42, 0.15)",
-          }}
-        >
-          {/* 编辑器顶栏 */}
-          <View
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 8,
-              flexWrap: "wrap",
-              gap: 6,
-            }}
-          >
-            <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Text style={{ color: "#f8fafc", fontSize: 13, fontWeight: "bold" }}>
-                📝 HTML 实时源码编辑器
-              </Text>
-              <View
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  backgroundColor: "rgba(16, 185, 129, 0.2)",
-                  padding: "2px 8px",
-                  borderRadius: 12,
-                  gap: 4,
-                }}
-              >
-                <View
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    backgroundColor: "#10b981",
-                  }}
-                />
-                <Text style={{ color: "#34d399", fontSize: 11 }}>⚡ 实时解析渲染中</Text>
-              </View>
-            </View>
-
-            <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Text style={{ color: "#94a3b8", fontSize: 11 }}>
-                {customHtml.length} 字符
-              </Text>
-              <View
-                onClick={() => setShowEditor(!showEditor)}
-                style={{
-                  color: "#cbd5e1",
-                  fontSize: 11,
-                  cursor: "pointer",
-                  padding: "2px 8px",
-                  borderRadius: 4,
-                  backgroundColor: "#334155",
-                  userSelect: "none",
-                }}
-              >
-                {showEditor ? "收起输入框" : "展开输入框"}
-              </View>
-            </View>
-          </View>
-
-          {showEditor && (
-            <>
-              {/* 快捷模版工具条 */}
-              <View
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 6,
-                  marginBottom: 8,
-                  flexWrap: "wrap",
-                }}
-              >
-                <Text style={{ color: "#94a3b8", fontSize: 11 }}>快捷模版:</Text>
-                {PRESET_TEMPLATES.map((tpl) => (
-                  <View
-                    key={tpl.label}
-                    onClick={() => {
-                      setCustomHtml(tpl.content);
-                      if (mode !== "custom") setMode("custom");
-                      Taro.showToast({ title: `已载入: ${tpl.label}`, icon: "none" });
-                    }}
-                    style={{
-                      padding: "2px 8px",
-                      borderRadius: 4,
-                      fontSize: 11,
-                      backgroundColor: "#334155",
-                      color: "#cbd5e1",
-                      cursor: "pointer",
-                      userSelect: "none",
-                    }}
-                  >
-                    {tpl.label}
-                  </View>
-                ))}
-              </View>
-
-              {/* 多行输入框 */}
-              <Textarea
-                value={customHtml}
-                onInput={(e: any) => {
-                  const val = e.detail?.value !== undefined ? e.detail.value : e.target?.value || "";
-                  setCustomHtml(val);
-                  if (mode !== "custom") setMode("custom");
-                }}
-                maxlength={-1}
-                placeholder="在此输入或粘贴 HTML 源码（支持 style 属性、SVG、表格、微信图文标签及自定义组件）..."
-                style={{
-                  width: "100%",
-                  height: "150px",
-                  boxSizing: "border-box",
-                  backgroundColor: "#0f172a",
-                  color: "#f1f5f9",
-                  fontFamily: "Menlo, Monaco, Consolas, 'Courier New', monospace",
-                  fontSize: "12px",
-                  lineHeight: 1.6,
-                  padding: "10px",
-                  borderRadius: "6px",
-                  border: "1px solid #334155",
-                }}
-              />
-
-              <View
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginTop: 6,
-                  flexWrap: "wrap",
-                  gap: 6,
-                }}
-              >
-                <Text style={{ color: "#64748b", fontSize: 11 }}>
-                  💡 修改上方代码，下方富文本区域将实时解析并呈现
-                </Text>
-                {mode !== "custom" && (
-                  <View
-                    onClick={() => setMode("custom")}
-                    style={{
-                      padding: "2px 8px",
-                      borderRadius: 4,
-                      fontSize: 11,
-                      backgroundColor: "#07c160",
-                      color: "#ffffff",
-                      cursor: "pointer",
-                      userSelect: "none",
-                    }}
-                  >
-                    切回自定义渲染视图
-                  </View>
-                )}
-              </View>
-            </>
-          )}
-        </View>
-      )}
 
       {/* 字体 rem 响应式计算与缩放控制栏 */}
       <View
@@ -684,45 +340,15 @@ export default function Index() {
         style={{
           backgroundColor: "#ffffff",
           borderRadius: 8,
-          padding: mode === "wechat" || mode === "long_article" || mode === "custom" ? 16 : 14,
+          padding: mode === "wechat" || mode === "long_article" || mode === "exhibition" ? 16 : 14,
           boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
           overflow: "hidden",
         }}
       >
-        {mode === "custom" && (
-          <View
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              paddingBottom: 10,
-              marginBottom: 12,
-              borderBottom: "1px dashed #e5e7eb",
-            }}
-          >
-            <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6 }}>
-              <View
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  backgroundColor: "#07c160",
-                }}
-              />
-              <Text style={{ fontSize: 12, fontWeight: "bold", color: "#374151" }}>
-                实时渲染结果预览
-              </Text>
-            </View>
-            <Text style={{ fontSize: 11, color: "#9ca3af" }}>
-              UniversalRichText 实时驱动
-            </Text>
-          </View>
-        )}
         <UniversalRichText
           content={getContent()}
           format={mode === "markdown" ? "markdown" : "html"}
-          mode={mode === "long_article" || mode === "wechat" || mode === "custom" ? "wechat" : "default"}
+          mode={mode === "long_article" || mode === "wechat" || mode === "exhibition" ? "wechat" : "default"}
           fontScale={fontScale}
           fontSize={fontSize}
           chunked={mode === "long_article"}

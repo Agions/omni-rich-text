@@ -316,7 +316,7 @@ function isInsidePre(stack: ASTNode[]): boolean {
   }
 
   const resultNodes = root.children || [];
-  optimizeASTLayout(resultNodes);
+  optimizeASTLayout(resultNodes, true);
   return resultNodes;
 }
 
@@ -407,10 +407,10 @@ function optimizeColumnDescendants(node: ASTNode, isMultiColumn: boolean): void 
  * Recursively post-processes and optimizes layout for flex containers,
  * multi-image rows, and mobile responsive adaptation.
  */
-function optimizeASTLayout(nodes: ASTNode[]): void {
+function optimizeASTLayout(nodes: ASTNode[], isRoot = false): void {
   for (const node of nodes) {
     if (node.children && node.children.length > 0) {
-      optimizeASTLayout(node.children);
+      optimizeASTLayout(node.children, false);
 
       const isFlex =
         node.styleObj?.display === 'flex' ||
@@ -457,10 +457,12 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
             // When a flex row has only 1 child and it has width: 100% (or background), ensure it fills the container
             const onlyChild = elemChildren[0];
             const w = onlyChild.styleObj?.width;
-            if (!w || w === '100%' || w.endsWith('100%')) {
+            const hasBg = onlyChild.styleObj?.['background-color'] && onlyChild.styleObj['background-color'] !== 'transparent';
+            if (!w || w === '100%' || w.endsWith('100%') || hasBg) {
               onlyChild.styleObj['flex'] = '1 1 0%';
               onlyChild.styleObj['width'] = '100%';
               onlyChild.styleObj['flex-shrink'] = '1';
+              node.styleObj['width'] = '100%';
             } else if (onlyChild.styleObj.flex === '0 0 auto') {
               onlyChild.styleObj.flex = '0 1 auto';
               onlyChild.styleObj['flex-shrink'] = '1';
@@ -534,38 +536,111 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
   }
 
   // 4. Post-process top-level article container:
-  // Detect theme background and neutralize outer padding (0px 10px WeChat gutter)
-  const themeBg = detectArticleThemeBg(nodes);
-  for (const root of nodes) {
-    if (root.type === 'element' && (root.name === 'section' || root.name === 'div')) {
-      const children = root.children?.filter((c) => c.type === 'element') || [];
-      const hasFullWidthBg = children.some((c) => {
-        const bg = c.styleObj?.['background-color'] || c.styleObj?.['background'] ||
-          c.children?.[0]?.styleObj?.['background-color'] || c.children?.[0]?.styleObj?.['background'];
-        return bg && bg !== 'transparent' && !bg.includes('rgba(255, 255, 255, 0)');
-      });
+  // Neutralize outer padding (0px 10px WeChat gutter) when content has full-bleed sections or images.
+  // Note: Background color should NEVER be forcibly injected into the root container,
+  // so that sections with no background remain on the default/transparent background.
+  if (isRoot) {
+    for (const root of nodes) {
+      if (root.type === 'element' && (root.name === 'section' || root.name === 'div')) {
+        const children = root.children?.filter((c) => c.type === 'element') || [];
+        const hasFullBleedChild = children.some((c) => {
+          const bg = c.styleObj?.['background-color'] || c.styleObj?.['background'] ||
+            c.children?.[0]?.styleObj?.['background-color'] || c.children?.[0]?.styleObj?.['background'];
+          const isColored = bg && bg !== 'transparent' && !bg.includes('rgba(255, 255, 255, 0)');
+          const isImg = c.name === 'img' || c.children?.some((sc) => sc.name === 'img');
+          return isColored || isImg;
+        });
 
-      if (themeBg || hasFullWidthBg) {
-        if (themeBg && (!root.styleObj['background-color'] || root.styleObj['background-color'] === 'transparent')) {
-          root.styleObj['background-color'] = themeBg;
-        }
-
-        root.styleObj['padding-left'] = '0';
-        root.styleObj['padding-right'] = '0';
-        if (root.styleObj['padding']) {
-          const parts = root.styleObj['padding'].trim().split(/\s+/);
-          if (parts.length === 2) {
-            root.styleObj['padding'] = `${parts[0]} 0`;
-          } else if (parts.length === 4) {
-            root.styleObj['padding'] = `${parts[0]} 0 ${parts[2]} 0`;
-          } else {
-            root.styleObj['padding'] = '0';
+        if (hasFullBleedChild) {
+          root.styleObj['padding-left'] = '0';
+          root.styleObj['padding-right'] = '0';
+          if (root.styleObj['padding']) {
+            const parts = root.styleObj['padding'].trim().split(/\s+/);
+            if (parts.length === 2) {
+              root.styleObj['padding'] = `${parts[0]} 0`;
+            } else if (parts.length === 4) {
+              root.styleObj['padding'] = `${parts[0]} 0 ${parts[2]} 0`;
+            } else {
+              root.styleObj['padding'] = '0';
+            }
           }
+          root.styleStr = stringifyStyleObject(root.styleObj);
         }
-        root.styleStr = stringifyStyleObject(root.styleObj);
       }
     }
   }
+
+  // 5. Seamless spacer background continuation:
+  // In WeChat articles, editors insert empty `<p><br/></p>` spacer tags between sections.
+  // When an empty spacer sits between two sections that share the SAME background color,
+  // apply that background color to the spacer so the background is not sliced by white stripes.
+  for (let i = 1; i < nodes.length - 1; i++) {
+    const curr = nodes[i];
+    if (isSpacerNode(curr)) {
+      let prevBg: string | undefined;
+      for (let p = i - 1; p >= 0; p--) {
+        if (!isSpacerNode(nodes[p]) && nodes[p].type === 'element') {
+          prevBg = getEffectiveBg(nodes[p]);
+          break;
+        }
+      }
+      let nextBg: string | undefined;
+      for (let n = i + 1; n < nodes.length; n++) {
+        if (!isSpacerNode(nodes[n]) && nodes[n].type === 'element') {
+          nextBg = getEffectiveBg(nodes[n]);
+          break;
+        }
+      }
+
+      if (prevBg && nextBg && prevBg === nextBg) {
+        curr.styleObj = curr.styleObj || {};
+        curr.styleObj['background-color'] = prevBg;
+        curr.styleStr = stringifyStyleObject(curr.styleObj);
+      }
+    }
+  }
+}
+
+function isSpacerNode(node: ASTNode): boolean {
+  if (node.type !== 'element') return false;
+  if (node.name !== 'p' && node.name !== 'div' && node.name !== 'section') return false;
+  const explicitBg = node.styleObj?.['background-color'] || node.styleObj?.['background'];
+  if (explicitBg && explicitBg !== 'transparent' && !explicitBg.includes('rgba(255, 255, 255, 0)')) {
+    return false;
+  }
+  const text = (node.children || []).map((c) => c.text || '').join('').trim();
+  if (text.length > 0) return false;
+  const nonBr = (node.children || []).filter((c) => c.type === 'element' && c.name !== 'br' && c.name !== 'span');
+  return nonBr.length === 0;
+}
+
+function getEffectiveBg(node: ASTNode): string | undefined {
+  function checkBg(bg?: string): boolean {
+    if (!bg) return false;
+    const lower = bg.trim().toLowerCase();
+    return !(
+      lower === 'transparent' ||
+      lower === 'none' ||
+      lower === 'inherit' ||
+      lower === 'initial' ||
+      lower === 'currentcolor' ||
+      lower.startsWith('rgba(0,') ||
+      lower.startsWith('rgba(255, 255, 255, 0') ||
+      lower === 'white' ||
+      lower === '#fff' ||
+      lower === '#ffffff' ||
+      lower === 'rgb(255, 255, 255)' ||
+      lower.startsWith('rgb(255, 255, 255')
+    );
+  }
+
+  const bg = node.styleObj?.['background-color'] || node.styleObj?.['background'];
+  if (checkBg(bg)) return bg;
+  if (node.children && node.children.length === 1 && node.children[0].type === 'element') {
+    const cBg = node.children[0].styleObj?.['background-color'] || node.children[0].styleObj?.['background'];
+    if (checkBg(cBg)) return cBg;
+  }
+  return undefined;
 }
 
 /**

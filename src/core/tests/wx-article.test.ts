@@ -445,17 +445,27 @@ describe('WeChat Official Account Article Parsing & Fidelity', () => {
 
     const root = result.ast[0];
     expect(root.name).toBe('section');
-    // Root section should inherit theme background
-    expect(root.styleObj['background-color']).toBe('rgb(247, 244, 234)');
+    // Root section should NOT be painted with theme background to avoid covering all text
+    expect(root.styleObj['background-color']).toBeUndefined();
     // Outer horizontal padding should be neutralized so background and images stretch 100% full-bleed
     expect(root.styleObj['padding-left']).toBe('0');
     expect(root.styleObj['padding-right']).toBe('0');
+
+    // Banner section keeps its own style (no forced background)
+    const bannerSection = root.children?.[0];
+    expect(bannerSection?.styleObj['background-color']).toBeUndefined();
 
     // Single-child flex rows with width: 100% should expand with flex: 1 1 0%
     const flexSection1 = root.children?.[1];
     const innerCol1 = flexSection1?.children?.[0];
     expect(innerCol1?.styleObj['flex']).toBe('1 1 0%');
     expect(innerCol1?.styleObj['width']).toBe('100%');
+    expect(innerCol1?.styleObj['background-color']).toBe('rgb(247, 244, 234)');
+
+    // Empty spacer <p><br /></p> between two matching beige sections should have seamless background
+    const spacer = root.children?.[2];
+    expect(spacer?.name).toBe('p');
+    expect(spacer?.styleObj?.['background-color']).toBe('rgb(247, 244, 234)');
 
     // White card keeps its white background and border-radius
     const cardSection = root.children?.[4];

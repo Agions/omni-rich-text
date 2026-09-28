@@ -246,7 +246,7 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
     fontSize: resolvedFontSize,
     userSelect: selectable ? 'text' : 'none',
     WebkitUserSelect: selectable ? 'text' : 'none',
-    backgroundColor: (style as any)?.backgroundColor || themeBgColor,
+    backgroundColor: (style as any)?.backgroundColor,
     ...style
   };
 

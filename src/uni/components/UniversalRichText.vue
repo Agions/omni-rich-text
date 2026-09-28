@@ -212,7 +212,7 @@ const containerStyle = computed(() => {
     fontSize: resolvedFontSize,
     userSelect: props.selectable ? 'text' : 'none',
     WebkitUserSelect: props.selectable ? 'text' : 'none',
-    backgroundColor: props.style?.backgroundColor || themeBgColor
+    backgroundColor: props.style?.backgroundColor
   };
   return { ...base, ...props.style };
 });

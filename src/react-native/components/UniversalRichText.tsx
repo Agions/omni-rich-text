@@ -182,7 +182,7 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
 
   // ── 5. Render ──────────────────────────────────────────────────────────────
   return (
-    <View style={[{ maxWidth: '100%', backgroundColor: (style as any)?.backgroundColor || themeBgColor }, style as any]}>
+    <View style={[{ maxWidth: '100%', backgroundColor: (style as any)?.backgroundColor }, style as any]}>
       {displayNodes.map((node) => (
         <RnNodeRenderer
           key={node.id}

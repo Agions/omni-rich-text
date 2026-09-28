@@ -275,9 +275,6 @@ Component({
       });
 
       const updateData = { galleryList, themeBgColor: themeBgColor || '' };
-      if (themeBgColor) {
-        updateData.containerStyle = this.data.containerStyle + ';background-color:' + themeBgColor + ';';
-      }
       this.setData(updateData);
       this._setNodes(ast);
     },

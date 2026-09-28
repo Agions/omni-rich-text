@@ -106,9 +106,15 @@ const OmniImage: React.FC<{
   const isFullWidth = !rawWidth || rawWidth === '100%' || rawWidth.startsWith('100%');
   const displayStyle = node.styleObj?.display || (isFullWidth ? 'block' : 'inline-block');
 
-  // Strip height and width from node.styleObj so mode="widthFix" works without conflict
+  // Strip height, width, and display from node.styleObj so mode="widthFix" works without conflict
   const rawImgStyle = toTaroStyle(node.styleObj);
-  const { height: _ignoreHeight, width: _ignoreWidth, maxWidth: _ignoreMaxWidth, ...cleanImgStyle } = rawImgStyle as any;
+  const {
+    height: _ignoreHeight,
+    width: _ignoreWidth,
+    maxWidth: _ignoreMaxWidth,
+    display: _ignoreDisplay,
+    ...cleanImgStyle
+  } = rawImgStyle as any;
 
   const effectiveHref = linkHref || node.attrs.href || node.attrs['data-href'];
 
@@ -216,13 +222,13 @@ const OmniImage: React.FC<{
           mode={(node.attrs.mode as any) || 'widthFix'}
           lazyLoad={node.attrs['lazy-load'] !== 'false'}
           style={toTaroStyle({
+            ...cleanImgStyle,
             width: '100%',
             maxWidth: '100%',
             display: 'block',
             boxSizing: 'border-box',
             opacity: loaded || !imageSkeleton ? 1 : 0,
-            transition: 'opacity 0.25s ease-in-out',
-            ...cleanImgStyle
+            transition: 'opacity 0.25s ease-in-out'
           })}
           onLoad={() => setLoaded(true)}
           onError={() => {

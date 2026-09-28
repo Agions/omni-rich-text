@@ -9,7 +9,8 @@ import {
   extractGallery,
   chunkAST,
   SmartLinkDispatcher,
-  markdownToHtml
+  markdownToHtml,
+  isAllInline
 } from '../index';
 import { PlatformBridge } from '../bridge/platform';
 
@@ -248,6 +249,38 @@ describe('Universal Rich Text Core Engine', () => {
       // Inline onclick event must be stripped
       expect(productNode.attrs.onclick).toBeUndefined();
       expect(productNode.extra?.isCustom).toBe(true);
+    });
+  });
+
+  describe('Style Object Cleanliness & Inline Heuristics', () => {
+    it('preserves !important in styleStr but strips !important in styleObj for framework object binding', () => {
+      const html = '<div style="width: 100% !important; margin: 10px 0 !important; color: rgb(51, 51, 51) !important;">test</div>';
+      const nodes = parseHtml(html);
+      expect(nodes.length).toBe(1);
+      const div = nodes[0];
+      // styleStr keeps !important for WXML / HTML inline CSS
+      expect(div.styleStr).toContain('!important');
+      // styleObj MUST NOT contain !important so Vue and React object-based style bindings do not drop the property
+      expect(div.styleObj['width']).toBe('100%');
+      expect(div.styleObj['color']).toBe('rgb(51, 51, 51)');
+      expect(div.styleObj['width']).not.toContain('!important');
+      expect(div.styleObj['color']).not.toContain('!important');
+    });
+
+    it('identifies inline elements with block display or dimensions as non-pure-inline', () => {
+      const pureInlineHtml = '<span>Pure text</span>';
+      const blockSpanHtml = '<span style="display: block; width: 100%; margin: 10px 0;">Block text</span>';
+      const [pureNode] = parseHtml(pureInlineHtml);
+      const [blockNode] = parseHtml(blockSpanHtml);
+
+      // pure inline tag should render as inline
+      expect(isAllInline(pureNode)).toBe(true);
+      expect(pureNode.styleObj?.display).toBeUndefined();
+
+      // block span should have explicit block display and width preserved, and not be treated as all-inline
+      expect(isAllInline(blockNode)).toBe(false);
+      expect(blockNode.styleObj?.display).toBe('block');
+      expect(blockNode.styleObj?.width).toBe('100%');
     });
   });
 });

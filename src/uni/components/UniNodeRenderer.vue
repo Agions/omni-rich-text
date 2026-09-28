@@ -300,6 +300,15 @@
   </view>
 </template>
 
+<script lang="ts">
+export default {
+  name: 'UniNodeRenderer',
+  options: {
+    virtualHost: true
+  }
+};
+</script>
+
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { ASTNode, ThemeConfig, INLINE_TAGS, isAllInline } from '../../core';
@@ -405,14 +414,15 @@ function imageStyle(node: ASTNode): Record<string, any> {
   delete cleanStyle.height;
   delete cleanStyle.width;
   delete cleanStyle.maxWidth;
+  delete cleanStyle.display;
   return {
+    ...cleanStyle,
     width: '100%',
     maxWidth: '100%',
     display: 'block',
     boxSizing: 'border-box',
     opacity: (isLoaded || !props.imageSkeleton) ? 1 : 0,
-    transition: 'opacity 0.25s ease-in-out',
-    ...cleanStyle
+    transition: 'opacity 0.25s ease-in-out'
   };
 }
 

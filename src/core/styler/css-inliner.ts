@@ -446,8 +446,14 @@ export function resolveNodeStyles(
     merged['max-width'] = merged['max-width'] || '100%';
   }
 
+  const cleanStyleObj: Record<string, string> = {};
+  for (const [prop, val] of Object.entries(merged)) {
+    if (!val) continue;
+    cleanStyleObj[prop] = typeof val === 'string' ? val.replace(/\s*!important/gi, '').trim() : val;
+  }
+
   return {
     styleStr: stringifyStyleObject(merged),
-    styleObj: merged
+    styleObj: cleanStyleObj
   };
 }

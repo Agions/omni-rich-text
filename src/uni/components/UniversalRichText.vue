@@ -21,6 +21,15 @@
   </view>
 </template>
 
+<script lang="ts">
+export default {
+  name: 'UniversalRichText',
+  options: {
+    virtualHost: true
+  }
+};
+</script>
+
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import {

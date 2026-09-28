@@ -316,7 +316,7 @@ function isInsidePre(stack: ASTNode[]): boolean {
   }
 
   const resultNodes = root.children || [];
-  optimizeASTLayout(resultNodes, true);
+  optimizeASTLayout(resultNodes);
   return resultNodes;
 }
 
@@ -407,10 +407,10 @@ function optimizeColumnDescendants(node: ASTNode, isMultiColumn: boolean): void 
  * Recursively post-processes and optimizes layout for flex containers,
  * multi-image rows, and mobile responsive adaptation.
  */
-function optimizeASTLayout(nodes: ASTNode[], isRoot = false): void {
+function optimizeASTLayout(nodes: ASTNode[]): void {
   for (const node of nodes) {
     if (node.children && node.children.length > 0) {
-      optimizeASTLayout(node.children, false);
+      optimizeASTLayout(node.children);
 
       const isFlex =
         node.styleObj?.display === 'flex' ||
@@ -422,76 +422,46 @@ function optimizeASTLayout(nodes: ASTNode[], isRoot = false): void {
         node.styleObj?.['flex-direction'] === 'column' ||
         node.styleObj?.['flex-flow']?.includes('column');
 
-      // 1. Flex container optimization for mobile:
-      // Prevent flex children from overflowing screen by setting min-width: 0 and allowing flex items to shrink
+      // 1. Flex container multi-column image optimization for mobile:
+      // Only when a flex row contains multiple columns with images,
+      // prevent images from overflowing screen by setting flex: 1 1 0% and proportional width.
+      // Non-image flex containers are kept 100% faithful to their original copied styles.
       if (isFlex && !isColumn) {
-        node.styleObj = node.styleObj || {};
-        node.styleObj['box-sizing'] = node.styleObj['box-sizing'] || 'border-box';
-        node.styleObj['max-width'] = node.styleObj['max-width'] || '100%';
-        node.styleStr = stringifyStyleObject(node.styleObj);
-
         const elemChildren = node.children.filter((c) => c.type === 'element');
         const hasImg = elemChildren.some(hasDescendantImage);
 
-        for (const child of node.children) {
-          if (child.type !== 'element') continue;
-          child.styleObj = child.styleObj || {};
-          child.styleObj['min-width'] = child.styleObj['min-width'] || '0';
-          child.styleObj['max-width'] = child.styleObj['max-width'] || '100%';
-          child.styleObj['box-sizing'] = child.styleObj['box-sizing'] || 'border-box';
+        if (elemChildren.length > 1 && hasImg) {
+          node.styleObj = node.styleObj || {};
+          node.styleObj['box-sizing'] = node.styleObj['box-sizing'] || 'border-box';
+          node.styleObj['max-width'] = node.styleObj['max-width'] || '100%';
+          node.styleStr = stringifyStyleObject(node.styleObj);
 
-          // In WeChat articles, desktop editors often output `flex: 0 0 auto` with 333.5px widths.
-          // On mobile, flex: 0 0 auto prevents columns from shrinking, and halving leaves a 41.5px blank.
-          // Convert multi-column image wrappers to proportional flex items (flex: 1 1 0%)
-          if (elemChildren.length > 1 && hasImg) {
+          for (const child of node.children) {
+            if (child.type !== 'element') continue;
+            child.styleObj = child.styleObj || {};
+            child.styleObj['min-width'] = '0';
+            child.styleObj['max-width'] = '100%';
+            child.styleObj['box-sizing'] = child.styleObj['box-sizing'] || 'border-box';
             child.styleObj['flex'] = '1 1 0%';
             child.styleObj['flex-shrink'] = '1';
-            // If child has fixed pixel/rem width (e.g. 333.5px), convert to percentage column width
+
             if (!child.styleObj['width'] || !child.styleObj['width'].endsWith('%')) {
               child.styleObj['width'] = `${parseFloat((100 / elemChildren.length).toFixed(2))}%`;
             }
             if (child.name !== 'img') {
               optimizeColumnDescendants(child, true);
-            }
-          } else if (elemChildren.length === 1) {
-            // When a flex row has only 1 child and it has width: 100% (or background), ensure it fills the container
-            const onlyChild = elemChildren[0];
-            const w = onlyChild.styleObj?.width;
-            const hasBg = onlyChild.styleObj?.['background-color'] && onlyChild.styleObj['background-color'] !== 'transparent';
-            if (!w || w === '100%' || w.endsWith('100%') || hasBg) {
-              onlyChild.styleObj['flex'] = '1 1 0%';
-              onlyChild.styleObj['width'] = '100%';
-              onlyChild.styleObj['flex-shrink'] = '1';
-              node.styleObj['width'] = '100%';
-            } else if (onlyChild.styleObj.flex === '0 0 auto') {
-              onlyChild.styleObj.flex = '0 1 auto';
-              onlyChild.styleObj['flex-shrink'] = '1';
-            }
-          } else if (child.styleObj.flex === '0 0 auto') {
-            child.styleObj.flex = '0 1 auto';
-            child.styleObj['flex-shrink'] = '1';
-          }
-
-          // If direct child is an img
-          if (child.name === 'img') {
-            if (isIconImage(child)) {
+            } else if (isIconImage(child)) {
               child.extra = child.extra || {};
               child.extra.isIcon = true;
               child.styleObj['display'] = 'inline-block';
               child.styleObj['vertical-align'] = 'middle';
             } else {
               child.extra = child.extra || {};
-              child.extra.isMultiImage = elemChildren.length > 1;
-              child.styleObj['flex'] = child.styleObj['flex'] || '1 1 0%';
-              child.styleObj['width'] = elemChildren.length > 1
-                ? `${parseFloat((100 / elemChildren.length).toFixed(2))}%`
-                : '100%';
-              child.styleObj['max-width'] = '100%';
+              child.extra.isMultiImage = true;
               child.styleObj['display'] = 'block';
             }
+            child.styleStr = stringifyStyleObject(child.styleObj);
           }
-
-          child.styleStr = stringifyStyleObject(child.styleObj);
         }
       }
 
@@ -534,113 +504,6 @@ function optimizeASTLayout(nodes: ASTNode[], isRoot = false): void {
       }
     }
   }
-
-  // 4. Post-process top-level article container:
-  // Neutralize outer padding (0px 10px WeChat gutter) when content has full-bleed sections or images.
-  // Note: Background color should NEVER be forcibly injected into the root container,
-  // so that sections with no background remain on the default/transparent background.
-  if (isRoot) {
-    for (const root of nodes) {
-      if (root.type === 'element' && (root.name === 'section' || root.name === 'div')) {
-        const children = root.children?.filter((c) => c.type === 'element') || [];
-        const hasFullBleedChild = children.some((c) => {
-          const bg = c.styleObj?.['background-color'] || c.styleObj?.['background'] ||
-            c.children?.[0]?.styleObj?.['background-color'] || c.children?.[0]?.styleObj?.['background'];
-          const isColored = bg && bg !== 'transparent' && !bg.includes('rgba(255, 255, 255, 0)');
-          const isImg = c.name === 'img' || c.children?.some((sc) => sc.name === 'img');
-          return isColored || isImg;
-        });
-
-        if (hasFullBleedChild) {
-          root.styleObj['padding-left'] = '0';
-          root.styleObj['padding-right'] = '0';
-          if (root.styleObj['padding']) {
-            const parts = root.styleObj['padding'].trim().split(/\s+/);
-            if (parts.length === 2) {
-              root.styleObj['padding'] = `${parts[0]} 0`;
-            } else if (parts.length === 4) {
-              root.styleObj['padding'] = `${parts[0]} 0 ${parts[2]} 0`;
-            } else {
-              root.styleObj['padding'] = '0';
-            }
-          }
-          root.styleStr = stringifyStyleObject(root.styleObj);
-        }
-      }
-    }
-  }
-
-  // 5. Seamless spacer background continuation:
-  // In WeChat articles, editors insert empty `<p><br/></p>` spacer tags between sections.
-  // When an empty spacer sits between two sections that share the SAME background color,
-  // apply that background color to the spacer so the background is not sliced by white stripes.
-  for (let i = 1; i < nodes.length - 1; i++) {
-    const curr = nodes[i];
-    if (isSpacerNode(curr)) {
-      let prevBg: string | undefined;
-      for (let p = i - 1; p >= 0; p--) {
-        if (!isSpacerNode(nodes[p]) && nodes[p].type === 'element') {
-          prevBg = getEffectiveBg(nodes[p]);
-          break;
-        }
-      }
-      let nextBg: string | undefined;
-      for (let n = i + 1; n < nodes.length; n++) {
-        if (!isSpacerNode(nodes[n]) && nodes[n].type === 'element') {
-          nextBg = getEffectiveBg(nodes[n]);
-          break;
-        }
-      }
-
-      if (prevBg && nextBg && prevBg === nextBg) {
-        curr.styleObj = curr.styleObj || {};
-        curr.styleObj['background-color'] = prevBg;
-        curr.styleStr = stringifyStyleObject(curr.styleObj);
-      }
-    }
-  }
-}
-
-function isSpacerNode(node: ASTNode): boolean {
-  if (node.type !== 'element') return false;
-  if (node.name !== 'p' && node.name !== 'div' && node.name !== 'section') return false;
-  const explicitBg = node.styleObj?.['background-color'] || node.styleObj?.['background'];
-  if (explicitBg && explicitBg !== 'transparent' && !explicitBg.includes('rgba(255, 255, 255, 0)')) {
-    return false;
-  }
-  const text = (node.children || []).map((c) => c.text || '').join('').trim();
-  if (text.length > 0) return false;
-  const nonBr = (node.children || []).filter((c) => c.type === 'element' && c.name !== 'br' && c.name !== 'span');
-  return nonBr.length === 0;
-}
-
-function getEffectiveBg(node: ASTNode): string | undefined {
-  function checkBg(bg?: string): boolean {
-    if (!bg) return false;
-    const lower = bg.trim().toLowerCase();
-    return !(
-      lower === 'transparent' ||
-      lower === 'none' ||
-      lower === 'inherit' ||
-      lower === 'initial' ||
-      lower === 'currentcolor' ||
-      lower.startsWith('rgba(0,') ||
-      lower.startsWith('rgba(255, 255, 255, 0') ||
-      lower === 'white' ||
-      lower === '#fff' ||
-      lower === '#ffffff' ||
-      lower === 'rgb(255, 255, 255)' ||
-      lower.startsWith('rgb(255, 255, 255')
-    );
-  }
-
-  const bg = node.styleObj?.['background-color'] || node.styleObj?.['background'];
-  if (checkBg(bg)) return bg;
-  if (node.children && node.children.length === 1 && node.children[0].type === 'element') {
-    const cBg = node.children[0].styleObj?.['background-color'] || node.children[0].styleObj?.['background'];
-    if (checkBg(cBg)) return cBg;
-  }
-  return undefined;
 }
 
 /**

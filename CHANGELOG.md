@@ -4,7 +4,7 @@ All notable changes to `omni-rich-text` will be documented in this file.
 
 ---
 
-## [0.1.1] - 2026-09-28
+## [0.1.2] - 2026-09-28
 
 ### 🚀 Major Improvements & Architecture Upgrades
 

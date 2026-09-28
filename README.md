@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/omni-rich-text"><img src="https://img.shields.io/npm/v/omni-rich-text.svg?color=cb3837" alt="npm version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
-  <img src="https://img.shields.io/badge/tests-41%20passed-brightgreen.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-51%20passed-brightgreen.svg" alt="Tests">
   <img src="https://img.shields.io/badge/build-tsup%20ESM%20%2B%20CJS%20%2B%20DTS-blue.svg" alt="Build Status">
   <a href="https://github.com/Agions/omni-rich-text"><img src="https://img.shields.io/github/stars/Agions/omni-rich-text?style=social" alt="GitHub stars"></a>
 </p>
@@ -17,27 +17,34 @@
 
 ## 🌟 核心特性与架构亮点
 
-### 1. ⚡ AST 解析 LRU 内存高速缓存
+### 1. 🎯 1:1 原貌尺寸保真（彻底废除 0.5 减半缩水逻辑）
+- **尺寸零丢失**：默认 `remScale: 1.0`，HTML 内容内联声明的 `margin`、`padding`、`border-radius`、`font-size` 等属性 **100% 原始呈现**，彻底解决移动端“元素原本有间距却间距丢失/变小”、“排版局促”等顽疾。
+- **智能防溢出保护**：仅对超出屏幕宽度的块级容器施加 `max-width: 100%` 响应式限制，保证小图标与多栏混排不失真、大卡片贴合屏幕不横向破边。
+
+### 2. 🏛️ 外层宿主零侵入与真实 DOM 层级保护
+- **杜绝背景色误覆盖**：宿主容器默认透明且零内边距（`padding: 0`），无人工注入的全局覆盖层。
+- **天然 DOM 隔离**：完全由内容节点自身（`<section>`、`<div>`、`<span>` 等）内联样式决定各节点的背景与延展范围，彻底消除“背景色覆盖全文章文字”或“背景色被外层固定 padding 挤压无法贴边”的渲染缺陷。
+
+### 3. 🖼️ 图片智能混排保真与异常静默容错
+- **精准排版流**：智能识别图片是行内小图标（`display: inline-block`）、徽章、多栏图组还是单张大图，严格保留其内联指定的宽高；仅对全宽主图自适应撑满屏幕，杜绝小图撑爆成单行大图。
+- **告别排版跳跃（Zero CLS）**：结合微信文章 `data-ratio` 比例骨架屏，在网络图片就绪前精准预占位，滑屏体验丝滑不抖动。
+- **失败彻底静默（Silent Fallback）**：当遇到 404、防盗链拦截或网络中断导致图片加载失败时，**彻底静默隐藏（不渲染破裂占位符）**，绝不出现任何粗糙的虚线框或“图片加载失败”灰色提示撕裂排版视觉。
+
+### 4. ⚡ AST 解析 LRU 内存高速缓存
 - 内置零依赖 32 位 FNV-1a 哈希与 LRU 缓存池（默认容量 50 条）。
 - 页面回退、列表复用或重新挂载时 **0ms 瞬间还原**，彻底杜绝重复的正则分词、样式内联与 DOM 树构建开销。
 - 支持通过 `cache: false` 禁用，并对外导出 `clearASTCache()` 和 `getASTCacheSize()` 控制接口。
 
-### 2. 📜 超长图文按需触底追加 (Scroll Append)
+### 5. 📜 超长图文按需触底追加 (Scroll Append)
 - **拒绝首屏卡顿**：支持 `appendMode: 'scroll'` 模式，首屏仅加载首批 chunk（如 15 个根节点）。
 - **视口哨兵探测**：通过底部 `IntersectionObserver` 哨兵自动感知用户滚动，临近视口底部（350px 缓冲带）时才动态挂载下一批节点，极大节省深层 DOM 与内存开销。
 - **平滑空闲调度**：在 `stream` 模式下采用 `requestIdleCallback` 调频，不阻塞主线程手势交互与动画。
 
-### 3. 🖼️ 图片 CLS 零抖动与优雅 Fallback
-- **智能宽高比提取**：自动从微信文章特有的 `data-ratio`、`data-w`/`data-h`、HTML `width`/`height` 及 inline style 计算图片宽高比（`aspectRatio` 与 `paddingBottom` 占位）。
-- **告别排版跳跃（Zero CLS）**：图片在网络加载完成前即精准预占高位，内容不被突然撑开。
-- **容错降级**：图片遇到 404 或网络加载失败时，自动切换为优雅虚线占位与错误提示，绝不撕裂排版。
-- **原生懒加载**：全端开启 `loading="lazy"` / `lazy-load`。
+### 6. 📰 微信公众号全特性深度对齐
+- **全特性无损呈现**：完整支持微信 SVG 矢量图与纹理、深层嵌套 Section 结构、CSS `background-image` 背景图纹理，安全过滤无用的微信专有空白审计标签（如 `mpvoice`、`mp-vote` 等）。
+- **开箱即用原生全功能交互**：内置图片点击全屏画廊预览（多图滑动与手势双击）、链接智能路由分发、长按自由选择与复制。
 
-### 4. 🛡️ 纯净模式（Zero-Default-Styles）与全事件接管
-- **组件不设任何强制预设样式**（无强制外边距、无预置灰色背景），样式 100% 完全由富文本内容驱动，保证跨端高度纯净与设计保真。
-- 彻底摒弃受限的原生 `<rich-text>`，全节点采用跨端基元组件递归渲染，100% 支持事件拦截与动态交互。
-
-### 5. 📦 标准预编译产物与现代化单包分发
+### 7. 📦 标准预编译产物与现代化单包分发
 - 使用 `tsup` 预编译打包，提供完整的 **ESM (`.mjs`)**、**CJS (`.js`)** 与 **TypeScript 类型声明 (`.d.ts`)**，开箱即用，无需依赖方强配 Babel/TS 转译规则。
 - 现代化子路径设计：`omni-rich-text/taro`、`omni-rich-text/uni`、`omni-rich-text/react-native`、`omni-rich-text/core`、`omni-rich-text/wechat`。
 
@@ -215,7 +222,7 @@ console.log(galleryList);  // 全文图片有序 URL 列表
 | `format` | `'html' \| 'markdown'` | `'html'` | 内容格式 |
 | `mode` | `'default' \| 'wechat'` | `'default'` | 渲染模式。`wechat` 模式自动内联 `<style>` 块并适配公众号卡片 |
 | `rootFontSize` | `number` | `18.75` | 小程序 rem 换算基准（375px 屏宽 20rem 规则，1rem = 18.75px） |
-| `remScale` | `number` | `0.5` | rem 缩放因子。默认 0.5（750 视网膜设计稿尺寸折半适配） |
+| `remScale` | `number` | `1.0` | 尺寸换算比例因子。默认 1.0（1:1 无损高保真原貌保真，彻底废除 0.5 减半缩水逻辑；若需移动端紧凑微缩可传入 0.5） |
 | `fontSizeResolver` | `Function` | `undefined` | 外部自定义字号解析函数 `(sourcePx, raw) => string \| number`，支持业务自主规则 |
 | `imageLinkAction` | `'link' \| 'preview' \| 'both'` | `'link'` | 图片带链接时的交互策略：`link`（优先跳转链接，默认）、`preview`（预览大图）、`both` |
 | `appendMode` | `'stream' \| 'scroll'` | `'stream'` | 长文挂载策略：`scroll` 为视口按需触底追加，`stream` 为空闲调频流式 |
@@ -264,11 +271,11 @@ const customTheme: ThemeConfig = {
 npm test
 ```
 
-41 项核心测试覆盖了：
-- 微信公众号真实文章高保真排版还原
-- 尺寸 rem 换算与 1px 发丝边框保护
+51 项核心测试覆盖了：
+- 微信公众号真实文章 1:1 高保真排版与多层嵌套还原
+- 尺寸 rem 1:1 无损换算与 1px 发丝边框保护
+- 图片智能混排、宽高自适应与异常静默容错
 - LRU 缓存命中与失效策略
-- 图片 CLS 尺寸与宽高比提取
 
 ---
 

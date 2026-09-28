@@ -3,7 +3,7 @@ import { ASTNode, LinkTapContext, MediaEventPayload, ThemeConfig } from '../../c
 
 export type { ThemeConfig };
 
-export interface UniversalRichTextProps {
+export interface OmniRichTextProps {
   /** Rich text content (HTML or Markdown) */
   content: string;
   /** Content format: 'html' | 'markdown'. Default is 'html' */
@@ -81,4 +81,6 @@ export interface UniversalRichTextProps {
   /** Whether to show a fallback placeholder when an image fails to load. Default is false (hides failed images). */
   showImageError?: boolean;
 }
+
+export type UniversalRichTextProps = OmniRichTextProps;
 

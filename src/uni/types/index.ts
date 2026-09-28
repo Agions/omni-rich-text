@@ -52,3 +52,6 @@ export interface UniRichTextProps {
   /** Whether to show fallback placeholder on image load failure. Default: false (hides failed images). */
   showImageError?: boolean;
 }
+
+export type OmniRichTextProps = UniRichTextProps;
+export type UniversalRichTextProps = UniRichTextProps;

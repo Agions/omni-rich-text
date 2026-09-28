@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { UniversalRichText } from 'omni-rich-text/taro';
+import { OmniRichText } from 'omni-rich-text/taro';
 import { parseRichContent } from 'omni-rich-text/core';
 import { HTML_DEMO, MARKDOWN_DEMO, XSS_DEMO } from './mock-data';
 
@@ -162,7 +162,7 @@ export function App() {
 
             {/* Scrollable Rich Text Container */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '16px 14px', position: 'relative' }}>
-              <UniversalRichText
+              <OmniRichText
                 content={currentContent}
                 format={currentFormat}
                 tabBarList={['/pages/home/index']}

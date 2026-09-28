@@ -57,12 +57,15 @@ yarn add omni-rich-text
 
 ## 🚀 跨端多框架使用指南
 
+> [!NOTE]
+> 核心导出组件名为 **`OmniRichText`**（与 `omni-rich-text` 包名保持一致，支持 1:1 无损高保真渲染），同时完全兼容保留 `UniversalRichText` 历史导出别名。
+
 ### 1. Taro (React) 适配层 (`omni-rich-text/taro`)
 
 ```tsx
 import React from 'react';
 import { View } from '@tarojs/components';
-import { UniversalRichText } from 'omni-rich-text/taro';
+import { OmniRichText } from 'omni-rich-text/taro';
 
 export default function ArticleDetail() {
   const htmlContent = `
@@ -76,7 +79,7 @@ export default function ArticleDetail() {
 
   return (
     <View style={{ padding: '0 16px' }}>
-      <UniversalRichText
+      <OmniRichText
         content={htmlContent}
         mode="wechat"
         appendMode="scroll"
@@ -100,7 +103,7 @@ export default function ArticleDetail() {
 ```vue
 <template>
   <view class="article-container">
-    <UniversalRichText
+    <OmniRichText
       :content="htmlContent"
       mode="wechat"
       :image-skeleton="true"
@@ -115,7 +118,7 @@ export default function ArticleDetail() {
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { UniversalRichText } from 'omni-rich-text/uni';
+import { OmniRichText } from 'omni-rich-text/uni';
 
 const htmlContent = ref(`
   <p>欢迎使用 UniApp 跨端富文本适配组件。</p>
@@ -136,7 +139,7 @@ function handleImageTap({ src, index }: { src: string; index: number }) {
 ```tsx
 import React from 'react';
 import { ScrollView } from 'react-native';
-import { UniversalRichText } from 'omni-rich-text/react-native';
+import { OmniRichText } from 'omni-rich-text/react-native';
 
 export default function NativeArticle() {
   const htmlContent = `
@@ -147,7 +150,7 @@ export default function NativeArticle() {
 
   return (
     <ScrollView style={{ flex: 1, padding: 16 }}>
-      <UniversalRichText
+      <OmniRichText
         content={htmlContent}
         imageSkeleton
         theme={{

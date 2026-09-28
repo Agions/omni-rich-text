@@ -132,7 +132,7 @@ const OmniImage: React.FC<{
     }
   };
 
-  if (hasError && !showImageError) {
+  if (hasError) {
     return null;
   }
 
@@ -178,7 +178,7 @@ const OmniImage: React.FC<{
         position: 'relative',
         display: displayStyle,
         verticalAlign: 'middle',
-        width: node.styleObj?.width || '100%',
+        width: node.styleObj?.width || (isFullWidth ? '100%' : undefined),
         maxWidth: '100%',
         minWidth: 0,
         boxSizing: 'border-box',
@@ -196,47 +196,27 @@ const OmniImage: React.FC<{
       })}
       onClick={handleTap}
     >
-      {hasError ? (
-        <View
-          className="omni-image-error"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '24px 12px',
-            backgroundColor: '#f8fafc',
-            color: '#94a3b8',
-            fontSize: '13px',
-            borderRadius: '4px',
-            border: '1px dashed #cbd5e1',
-            minHeight: '80px',
-            textAlign: 'center'
-          }}
-        >
-          <Text>{node.attrs.alt ? `[图片加载失败: ${node.attrs.alt}]` : '🖼️ 图片加载失败'}</Text>
-        </View>
-      ) : (
-        <Image
-          className="omni-image"
-          src={src}
-          mode={(node.attrs.mode as any) || 'widthFix'}
-          lazyLoad={node.attrs['lazy-load'] !== 'false'}
-          style={toTaroStyle({
-            ...cleanImgStyle,
-            width: '100%',
-            maxWidth: '100%',
-            display: 'block',
-            boxSizing: 'border-box',
-            opacity: loaded || !imageSkeleton ? 1 : 0,
-            transition: 'opacity 0.25s ease-in-out'
-          })}
-          onLoad={() => setLoaded(true)}
-          onError={() => {
-            setHasError(true);
-            setLoaded(true);
-          }}
-        />
-      )}
+      <Image
+        className="omni-image"
+        src={src}
+        mode={(node.attrs.mode as any) || (node.styleObj?.height && !isFullWidth ? 'aspectFit' : 'widthFix')}
+        lazyLoad={node.attrs['lazy-load'] !== 'false'}
+        style={toTaroStyle({
+          ...cleanImgStyle,
+          width: isFullWidth ? '100%' : (node.styleObj?.width || '100%'),
+          height: node.styleObj?.height,
+          maxWidth: '100%',
+          display: displayStyle === 'inline-block' ? 'inline-block' : 'block',
+          boxSizing: 'border-box',
+          opacity: loaded || !imageSkeleton ? 1 : 0,
+          transition: 'opacity 0.25s ease-in-out'
+        })}
+        onLoad={() => setLoaded(true)}
+        onError={() => {
+          setHasError(true);
+          setLoaded(true);
+        }}
+      />
     </View>
   );
 };

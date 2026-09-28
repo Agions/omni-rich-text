@@ -13,28 +13,28 @@ import {
 describe('WeChat Mini Program REM Calculation and Halving Rules', () => {
   it('should convert concrete width and dimensions to rem with halving based on WeChat rules', () => {
     // WeChat Mini Program screen width = 20rem (1rem = 18.75px on 375px screen).
-    // Converted rem is halved by default (remScale = 0.5).
+    // Converted rem is 1:1 by default (remScale = 1.0) for zero-loss fidelity.
 
-    // 1. width: 200px -> (200 * 0.5) / 18.75 = 5.3333rem
-    expect(formatDimensionToRem('width', '200px')).toBe('5.3333rem');
+    // 1. width: 200px -> 200 / 18.75 = 10.6667rem
+    expect(formatDimensionToRem('width', '200px')).toBe('10.6667rem');
 
-    // 2. width: 200 (pure number for dimension property) -> (200 * 0.5) / 18.75 = 5.3333rem
-    expect(formatDimensionToRem('width', '200')).toBe('5.3333rem');
+    // 2. width: 200 (pure number for dimension property) -> 200 / 18.75 = 10.6667rem
+    expect(formatDimensionToRem('width', '200')).toBe('10.6667rem');
 
-    // 3. width: 375px -> (375 * 0.5) / 18.75 = 10rem
-    expect(formatDimensionToRem('width', '375px')).toBe('10rem');
+    // 3. width: 375px -> 375 / 18.75 = 20rem
+    expect(formatDimensionToRem('width', '375px')).toBe('20rem');
 
-    // 4. width: 750px (standard 750 retina canvas full width) -> (750 * 0.5) / 18.75 = 20rem (fills 20rem screen)
-    expect(formatDimensionToRem('width', '750px')).toBe('20rem');
+    // 4. width: 750px -> 750 / 18.75 = 40rem
+    expect(formatDimensionToRem('width', '750px')).toBe('40rem');
 
     // 5. margin / padding multi-values
-    // padding: 14px 16px -> 0.3733rem 0.4267rem
-    expect(formatDimensionToRem('padding', '14px 16px')).toBe('0.3733rem 0.4267rem');
-    // margin: 10px 0px -> 0.2667rem 0
-    expect(formatDimensionToRem('margin', '10px 0px')).toBe('0.2667rem 0');
+    // padding: 14px 16px -> 0.7467rem 0.8533rem
+    expect(formatDimensionToRem('padding', '14px 16px')).toBe('0.7467rem 0.8533rem');
+    // margin: 10px 0px -> 0.5333rem 0
+    expect(formatDimensionToRem('margin', '10px 0px')).toBe('0.5333rem 0');
 
-    // 6. border-radius: 8px -> (8 * 0.5) / 18.75 = 0.2133rem
-    expect(formatDimensionToRem('border-radius', '8px')).toBe('0.2133rem');
+    // 6. border-radius: 8px -> 8 / 18.75 = 0.4267rem
+    expect(formatDimensionToRem('border-radius', '8px')).toBe('0.4267rem');
 
     // 7. 1px hairline border preserved to prevent subpixel disappearance
     expect(formatDimensionToRem('border', '1px solid #ccc')).toBe('1px solid #ccc');
@@ -126,33 +126,32 @@ describe('WeChat Mini Program REM Calculation and Halving Rules', () => {
     const p = div.children?.[1];
     const span = div.children?.[2];
 
-    // div width: 200px -> (200 * 0.5) / 18.75 = 5.3333rem
-    expect(div.styleObj['width']).toBe('5.3333rem');
-    // div padding: 10px 0px -> 0.2667rem 0
-    expect(div.styleObj['padding']).toBe('0.2667rem 0');
+    // div width: 200px -> 200 / 18.75 = 10.6667rem
+    expect(div.styleObj['width']).toBe('10.6667rem');
+    // div padding: 10px 0px -> 10 / 18.75 = 0.5333rem 0
+    expect(div.styleObj['padding']).toBe('0.5333rem 0');
 
     // font-size: 32px 1:1 -> 32 / 18.75 = 1.7067rem
     expect(h2?.styleObj['font-size']).toBe('1.7067rem');
-    // line-height: 48px (dimension, not font-size) -> (48 * 0.5) / 18.75 = 1.28rem
-    expect(h2?.styleObj['line-height']).toBe('1.28rem');
+    // line-height: 48px (dimension, not font-size) -> 48 / 18.75 = 2.56rem
+    expect(h2?.styleObj['line-height']).toBe('2.56rem');
     // font-size: 28px 1:1 -> 28 / 18.75 = 1.4933rem
     expect(p?.styleObj['font-size']).toBe('1.4933rem');
     // font-size: 37.5rpx -> 18.75px 1:1 -> 18.75 / 18.75 = 1rem
     expect(span?.styleObj['font-size']).toBe('1rem');
   });
 
-  it('should support custom remScale (e.g. remScale = 1 for 1:1 conversion without halving)', () => {
+  it('should support custom remScale (e.g. remScale = 0.5 for halved mobile compact scaling)', () => {
     const html = `<div style="width: 200px; font-size: 32px;">自定义remScale测试</div>`;
 
-    // remScale = 1 (no halving for dimensions: 200 / 18.75 = 10.6667rem)
-    // font-size preserves 1:1 (32 / 18.75 = 1.7067rem)
-    const result1 = parseRichContent(html, { remScale: 1 });
-    expect(result1.ast[0].styleObj['width']).toBe('10.6667rem');
-    expect(result1.ast[0].styleObj['font-size']).toBe('1.7067rem');
+    // remScale = 0.5 (halved for dimensions: (200 * 0.5) / 18.75 = 5.3333rem)
+    const resultHalf = parseRichContent(html, { remScale: 0.5 });
+    expect(resultHalf.ast[0].styleObj['width']).toBe('5.3333rem');
+    expect(resultHalf.ast[0].styleObj['font-size']).toBe('1.7067rem');
 
-    // Default remScale = 0.5 (halved for dimensions)
+    // Default remScale = 1.0 (1:1 preservation: 200 / 18.75 = 10.6667rem)
     const resultDefault = parseRichContent(html);
-    expect(resultDefault.ast[0].styleObj['width']).toBe('5.3333rem');
+    expect(resultDefault.ast[0].styleObj['width']).toBe('10.6667rem');
     expect(resultDefault.ast[0].styleObj['font-size']).toBe('1.7067rem');
   });
 
@@ -207,7 +206,7 @@ describe('WeChat Mini Program REM Calculation and Halving Rules', () => {
     const p = div.children?.[0];
     const img = div.children?.[1];
 
-    expect(div.styleObj['width']).toBe('5.3333rem');
+    expect(div.styleObj['width']).toBe('10.6667rem');
     // font-size: 32px 1:1 -> 32 / 18.75 = 1.7067rem
     expect(p?.styleObj['font-size']).toBe('1.7067rem');
     expect(img?.styleObj['width']).toBe('100%');

@@ -29,7 +29,7 @@ export const WECHAT_CANVAS_WIDTH = 677;
 export const WECHAT_REM_BASE = 18.75;
 export const WECHAT_RPX_REM_BASE = 37.5;
 export const DEFAULT_ROOT_FONT_SIZE = WECHAT_REM_BASE;
-export const DEFAULT_REM_SCALE = 0.5;
+export const DEFAULT_REM_SCALE = 1.0;
 
 /**
  * Default target base font size (in px): e.g. 15px.
@@ -144,15 +144,8 @@ export function formatDimensionToRem(
   const lowerProp = prop.toLowerCase();
   const isWidthProp = lowerProp === 'width' || lowerProp === 'max-width' || lowerProp === 'min-width';
 
-  // In WeChat mode with default remScale, scale width dimensions according to WeChat desktop canvas (677px)
-  // to 375px mobile screen: 375 / 677 ≈ 0.5539. This eliminates the right-hand blank space when desktop 677px
-  // multi-column widths (e.g. 333.5px columns) are rendered on mobile!
-  // For other properties (border-radius, padding, margin, etc.), standard remScale (0.5) is maintained.
-  const isDefaultRemScale = remScale === DEFAULT_REM_SCALE;
   const effectiveRemScale =
-    mode === 'wechat' && isDefaultRemScale && isWidthProp
-      ? (baseRoot * 20) / WECHAT_CANVAS_WIDTH
-      : typeof remScale === 'number' && remScale > 0
+    typeof remScale === 'number' && remScale > 0
       ? remScale
       : DEFAULT_REM_SCALE;
 

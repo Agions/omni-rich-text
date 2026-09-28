@@ -9,7 +9,7 @@ import {
   DEFAULT_CONTENT_BASE_FONT_SIZE,
   ASTNode
 } from '../../core';
-import { UniversalRichTextProps } from '../types';
+import { OmniRichTextProps, UniversalRichTextProps } from '../types';
 import { RnNodeRenderer } from './RnNodeRenderer';
 
 /**
@@ -23,7 +23,7 @@ import { RnNodeRenderer } from './RnNodeRenderer';
  * `on*` callback props. Video and audio playback require the caller to supply
  * a `customRender` prop that returns a native player component.
  */
-export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
+export const OmniRichText: React.FC<OmniRichTextProps> = ({
   content,
   format = 'html',
   mode = 'default',
@@ -202,3 +202,5 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
     </View>
   );
 };
+
+export const UniversalRichText = OmniRichText;

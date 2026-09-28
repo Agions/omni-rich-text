@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, Text } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import { UniversalRichText } from "omni-rich-text/taro";
+import { OmniRichText } from "omni-rich-text/taro";
 import { LONG_ARTICLE_SAMPLE } from "./long-article";
 import { EXHIBITION_SAMPLE } from "./exhibition-sample";
 import { ProductCard } from "../../components/ProductCard";
@@ -340,12 +340,12 @@ export default function Index() {
         style={{
           backgroundColor: "#ffffff",
           borderRadius: 8,
-          padding: mode === "wechat" || mode === "long_article" || mode === "exhibition" ? 16 : 14,
+          padding: mode === "wechat" || mode === "exhibition" ? 0 : 14,
           boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
           overflow: "hidden",
         }}
       >
-        <UniversalRichText
+        <OmniRichText
           content={getContent()}
           format={mode === "markdown" ? "markdown" : "html"}
           mode={mode === "long_article" || mode === "wechat" || mode === "exhibition" ? "wechat" : "default"}

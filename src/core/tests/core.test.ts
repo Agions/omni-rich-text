@@ -99,8 +99,8 @@ describe('Universal Rich Text Core Engine', () => {
       const html = '<img src="https://example.com/demo.png" style="width: 250px" />';
       const { ast } = parseRichContent(html);
       const img = ast[0];
-      // 250px converted to rem under WeChat Mini Program rule: (250 * 0.5) / 18.75 = 6.6667rem
-      expect(img.styleObj['width']).toBe('6.6667rem');
+      // 250px converted to rem under WeChat Mini Program 1:1 rule: 250 / 18.75 = 13.3333rem
+      expect(img.styleObj['width']).toBe('13.3333rem');
     });
   });
 

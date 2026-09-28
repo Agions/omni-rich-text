@@ -72,7 +72,7 @@ export function generateCacheKey(content: string, options?: Record<string, any>)
     options.maxDepth ?? 8,
     options.extractStyles ? '1' : '0',
     options.rootFontSize ?? 18.75,
-    options.remScale ?? 0.5,
+    options.remScale ?? 1.0,
     options.fontScale ?? 1,
     options.baseFontSize ?? 15,
     options.contentBaseFontSize ?? 22,

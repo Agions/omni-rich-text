@@ -102,8 +102,8 @@ describe('WeChat Official Account Article Parsing & Fidelity', () => {
     expect(card.name).toBe('section');
     expect(card.styleObj['background-color']).toBe('#f6f8fa');
     expect(card.styleObj['border']).toBe('1px solid #e1e4e8');
-    // 8px converted to rem and halved: (8 * 0.5) / 18.75 = 0.2133rem
-    expect(card.styleObj['border-radius']).toBe('0.2133rem');
+    // 8px converted to rem 1:1: 8 / 18.75 = 0.4267rem
+    expect(card.styleObj['border-radius']).toBe('0.4267rem');
 
     const innerSection = card.children?.[0];
     expect(innerSection?.styleObj['display']).toBe('flex');
@@ -114,8 +114,8 @@ describe('WeChat Official Account Article Parsing & Fidelity', () => {
 
     const blockquote = card.children?.[2];
     expect(blockquote?.name).toBe('blockquote');
-    // 3px converted to rem and halved: (3 * 0.5) / 18.75 = 0.08rem
-    expect(blockquote?.styleObj['border-left']).toBe('0.08rem solid #dcdfe6');
+    // 3px converted to rem 1:1: 3 / 18.75 = 0.16rem
+    expect(blockquote?.styleObj['border-left']).toBe('0.16rem solid #dcdfe6');
   });
 
   // Scenario 4: Media Elements & WeChat Ignored Tags Filtering
@@ -447,7 +447,7 @@ describe('WeChat Official Account Article Parsing & Fidelity', () => {
     expect(root.name).toBe('section');
     // Root section faithfully preserves its original style (no background injected, padding preserved)
     expect(root.styleObj['background-color']).toBeUndefined();
-    expect(root.styleObj['padding']).toBe('0 0.2667rem');
+    expect(root.styleObj['padding']).toBe('0 0.5333rem');
 
     // Banner section keeps its own style (no forced background)
     const bannerSection = root.children?.[0];

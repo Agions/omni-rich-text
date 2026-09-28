@@ -1,11 +1,11 @@
 
 import { View } from '@tarojs/components'
-import { UniversalRichText } from 'omni-rich-text/taro'
+import { OmniRichText } from 'omni-rich-text/taro'
 
 const ABOUT_MD = `
-# 🛠️ Universal Rich Text 架构特性
+# 🛠️ Omni Rich Text 架构特性
 
-本组件库专为解决 UniApp 与 Taro 生态下富文本交互痛点设计：
+本组件库专为解决小程序跨端富文本 1:1 高保真展示与交互痛点设计：
 
 - **完全自研 Virtual DOM 递归树**：抛弃原生 rich-text 的黑盒局限
 - **全节点事件代理**：超链接、图片、视频、音频均可精准拦截
@@ -25,7 +25,7 @@ export default function AboutPage() {
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
         }}
       >
-        <UniversalRichText
+        <OmniRichText
           content={ABOUT_MD}
           format="markdown"
           onLinkTap={(ctx) => console.log('About link tapped:', ctx.href)}

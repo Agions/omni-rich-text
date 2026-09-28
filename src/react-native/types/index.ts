@@ -2,7 +2,7 @@ import { ASTNode, LinkTapContext, MediaEventPayload, ThemeConfig } from '../../c
 
 export type { ThemeConfig };
 
-export interface UniversalRichTextProps {
+export interface OmniRichTextProps {
   /** Rich text content (HTML or Markdown string) */
   content: string;
 
@@ -108,3 +108,5 @@ export interface UniversalRichTextProps {
   /** Called for video / audio playback events when using a custom player via customRender */
   onMediaEvent?: (payload: MediaEventPayload) => void;
 }
+
+export type UniversalRichTextProps = OmniRichTextProps;

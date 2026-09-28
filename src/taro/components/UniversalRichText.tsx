@@ -14,11 +14,11 @@ import {
   DEFAULT_CONTENT_BASE_FONT_SIZE,
   ASTNode
 } from '../../core';
-import { UniversalRichTextProps } from '../types';
+import { OmniRichTextProps, UniversalRichTextProps } from '../types';
 import { NodeRenderer } from './NodeRenderer';
 import { H5Lightbox } from './H5Lightbox';
 
-export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
+export const OmniRichText: React.FC<OmniRichTextProps> = ({
   content,
   format = 'html',
   mode = 'default',
@@ -294,3 +294,5 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
     </View>
   );
 };
+
+export const UniversalRichText = OmniRichText;

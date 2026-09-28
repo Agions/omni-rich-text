@@ -64,18 +64,14 @@
 <!-- ⑤-A Icon / Emoji Image -->
 <block wx:elif="{{node.name === 'img' && node.extra.isIcon}}">
   <view
-    wx:if="{{!hasError || showImageError}}"
+    wx:if="{{!hasError}}"
     class="omni-image-icon-wrap"
     style="display:inline-block;vertical-align:middle;width:{{node.styleObj.width || node.attrs.width || '20px'}};height:{{node.styleObj.height || node.attrs.height || '20px'}};"
     catch:tap="onImageTap"
     data-src="{{node.attrs.src || node.attrs['data-src']}}"
     data-gallery-index="{{node.extra.galleryIndex}}"
   >
-    <view wx:if="{{hasError}}" class="omni-image-error">
-      <text>🖼️</text>
-    </view>
     <image
-      wx:else
       class="omni-image-icon"
       src="{{node.attrs.src || node.attrs['data-src']}}"
       mode="aspectFit"
@@ -88,22 +84,14 @@
 <!-- ⑤-B Regular Image <img> with skeleton placeholder -->
 <block wx:elif="{{node.name === 'img'}}">
   <view
-    wx:if="{{!hasError || showImageError}}"
+    wx:if="{{!hasError}}"
     class="omni-image-skeleton"
     style="display:{{(node.styleObj.width && node.styleObj.width !== '100%') ? 'inline-block' : 'block'}};max-width:100%;min-width:0;box-sizing:border-box;vertical-align:middle;width:{{node.styleObj.width || '100%'}};{{node.extra.skeletonStyle}}"
     catch:tap="onImageTap"
     data-src="{{node.attrs.src || node.attrs['data-src']}}"
     data-gallery-index="{{node.extra.galleryIndex}}"
   >
-    <view
-      wx:if="{{hasError}}"
-      class="omni-image-error"
-      style="padding:40rpx 24rpx;text-align:center;background-color:#f8fafc;border-radius:8rpx;border:1rpx dashed #e2e8f0;font-size:24rpx;color:#94a3b8;"
-    >
-      <text>{{node.attrs.alt ? '[图片加载失败: ' + node.attrs.alt + ']' : '🖼️ 图片加载失败'}}</text>
-    </view>
     <image
-      wx:else
       class="omni-image"
       src="{{node.attrs.src || node.attrs['data-src']}}"
       mode="{{node.attrs.mode || 'widthFix'}}"

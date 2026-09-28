@@ -43,6 +43,7 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
   fontSizeResolver,
   imageLinkAction = 'link',
   imageSkeleton = true,
+  showImageError = false,
   customRender,
   tabBarList = [],
   onLinkTap,
@@ -189,6 +190,7 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
           node={node}
           theme={effectiveTheme}
           imageSkeleton={imageSkeleton}
+          showImageError={showImageError}
           imageLinkAction={imageLinkAction}
           onLinkTap={handleLinkTap}
           onImageTap={handleImageTap}

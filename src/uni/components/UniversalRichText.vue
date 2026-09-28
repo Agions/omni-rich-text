@@ -10,6 +10,7 @@
       :theme="theme"
       :selectable="selectable"
       :image-skeleton="imageSkeleton"
+      :show-image-error="showImageError"
       :image-link-action="imageLinkAction"
       @link-tap="handleLinkTap"
       @image-tap="handleImageTap"
@@ -63,6 +64,7 @@ const props = withDefaults(
     fontScale?: number;
     theme?: ThemeConfig;
     imageSkeleton?: boolean;
+    showImageError?: boolean;
     imageLinkAction?: 'link' | 'preview' | 'both';
   }>(),
   {
@@ -77,6 +79,7 @@ const props = withDefaults(
     style: () => ({}),
     theme: () => ({}),
     imageSkeleton: true,
+    showImageError: false,
     imageLinkAction: 'link'
   }
 );

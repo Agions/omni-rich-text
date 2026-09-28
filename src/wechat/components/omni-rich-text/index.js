@@ -178,6 +178,16 @@ Component({
     imageLinkAction: {
       type: String,
       value: 'link'
+    },
+
+    /**
+     * Whether to display broken image placeholder on image load failure.
+     * When false (default), failed images are completely hidden.
+     * @default false
+     */
+    showImageError: {
+      type: Boolean,
+      value: false
     }
   },
 

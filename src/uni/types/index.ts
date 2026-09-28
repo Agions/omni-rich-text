@@ -49,4 +49,6 @@ export interface UniRichTextProps {
   imageLinkAction?: 'link' | 'preview' | 'both';
   /** Enable image skeleton placeholder. Default: true */
   imageSkeleton?: boolean;
+  /** Whether to show fallback placeholder on image load failure. Default: false (hides failed images). */
+  showImageError?: boolean;
 }

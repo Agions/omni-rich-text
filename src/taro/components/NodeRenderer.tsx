@@ -22,6 +22,8 @@ export interface NodeRendererProps {
   >;
   /** Enable skeleton placeholder and smooth fade-in for images. Default is true */
   imageSkeleton?: boolean;
+  /** Whether to show fallback placeholder on image load failure. Default is false (hides failed images). */
+  showImageError?: boolean;
   /** Semantic color theme overrides */
   theme?: ThemeConfig;
   /** Index in list if inside ul/ol */
@@ -78,6 +80,7 @@ const OmniImage: React.FC<{
   imageLinkAction?: 'link' | 'preview' | 'both';
   imageSkeleton?: boolean;
   imageSkeletonColor?: string;
+  showImageError?: boolean;
   onImageClick: (src: string, node: ASTNode) => void;
   onLinkClick: (href: string, node: ASTNode) => void;
   onNodeEvent?: (eventType: string, node: ASTNode, rawEvent: any) => void;
@@ -88,6 +91,7 @@ const OmniImage: React.FC<{
   imageLinkAction = 'link',
   imageSkeleton = true,
   imageSkeletonColor = '#f1f5f9',
+  showImageError = false,
   onImageClick,
   onLinkClick,
   onNodeEvent
@@ -122,6 +126,10 @@ const OmniImage: React.FC<{
     }
   };
 
+  if (hasError && !showImageError) {
+    return null;
+  }
+
   if (node.extra?.isIcon) {
     const iconW = node.styleObj?.width || node.attrs.width || '20px';
     const iconH = node.styleObj?.height || node.attrs.height || '20px';
@@ -148,6 +156,10 @@ const OmniImage: React.FC<{
             display: 'inline-block',
             verticalAlign: 'middle'
           })}
+          onError={() => {
+            setHasError(true);
+            setLoaded(true);
+          }}
         />
       </View>
     );
@@ -233,6 +245,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
   customRender,
   components,
   imageSkeleton = true,
+  showImageError = false,
   theme,
   indexInList,
   parentTag,
@@ -251,6 +264,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
       imageLinkAction={imageLinkAction}
       components={components}
       imageSkeleton={imageSkeleton}
+      showImageError={showImageError}
       theme={theme}
       onLinkClick={onLinkClick}
       onImageClick={onImageClick}
@@ -417,6 +431,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
         imageLinkAction={imageLinkAction}
         imageSkeleton={imageSkeleton}
         imageSkeletonColor={theme?.imageSkeletonColor}
+        showImageError={showImageError}
         onImageClick={onImageClick}
         onLinkClick={onLinkClick}
         onNodeEvent={onNodeEvent}

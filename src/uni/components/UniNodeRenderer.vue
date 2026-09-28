@@ -34,6 +34,7 @@
       :theme="theme"
       :selectable="selectable"
       :image-skeleton="imageSkeleton"
+      :show-image-error="showImageError"
       :parent-tag="node.name"
       v-bind="forwardEvents"
     />
@@ -53,6 +54,7 @@
       :theme="theme"
       :selectable="selectable"
       :image-skeleton="imageSkeleton"
+      :show-image-error="showImageError"
       :image-link-action="imageLinkAction"
       :parent-link-href="node.attrs?.href || ''"
       parent-tag="a"
@@ -62,7 +64,7 @@
 
   <!-- 5. Image <img> (Icon vs Regular Image) -->
   <view
-    v-else-if="node.name === 'img' && node.extra?.isIcon"
+    v-else-if="node.name === 'img' && node.extra?.isIcon && (!errorImages.has(node.attrs?.src || node.attrs?.['data-src'] || '') || showImageError)"
     class="omni-image-icon-wrap"
     :style="{
       display: 'inline-block',
@@ -75,7 +77,7 @@
   >
     <image
       class="omni-image-icon"
-      :src="node.attrs.src || node.attrs['data-src']"
+      :src="node.attrs?.src || node.attrs?.['data-src']"
       mode="aspectFit"
       :style="{
         width: node.styleObj?.width || node.attrs?.width || '20px',
@@ -83,27 +85,28 @@
         display: 'inline-block',
         verticalAlign: 'middle'
       }"
+      @error="onImageError(node)"
     />
   </view>
   <view
-    v-else-if="node.name === 'img'"
+    v-else-if="node.name === 'img' && (!errorImages.has(node.attrs?.src || node.attrs?.['data-src'] || '') || showImageError)"
     class="omni-image-wrap"
     :style="imageWrapStyle(node)"
     @tap.stop="handleImageTap(node)"
   >
     <view
-      v-if="errorImages.has(node.attrs.src || node.attrs['data-src'] || '')"
+      v-if="errorImages.has(node.attrs?.src || node.attrs?.['data-src'] || '') && showImageError"
       class="omni-image-error"
       style="display: flex; align-items: center; justify-content: center; padding: 24px 12px; background-color: #f8fafc; color: #94a3b8; font-size: 12px; border-radius: 4px; border: 1px dashed #cbd5e1; min-height: 80px; text-align: center;"
     >
-      <text>{{ node.attrs.alt ? `[图片加载失败: ${node.attrs.alt}]` : '🖼️ 图片加载失败' }}</text>
+      <text>{{ node.attrs?.alt ? `[图片加载失败: ${node.attrs.alt}]` : '🖼️ 图片加载失败' }}</text>
     </view>
     <image
-      v-else
+      v-else-if="!errorImages.has(node.attrs?.src || node.attrs?.['data-src'] || '')"
       class="omni-image"
-      :src="node.attrs.src || node.attrs['data-src']"
-      :mode="node.attrs.mode || 'widthFix'"
-      :lazy-load="node.attrs['lazy-load'] !== 'false'"
+      :src="node.attrs?.src || node.attrs?.['data-src']"
+      :mode="node.attrs?.mode || 'widthFix'"
+      :lazy-load="node.attrs?.['lazy-load'] !== 'false'"
       :style="imageStyle(node)"
       @load="onImageLoad(node)"
       @error="onImageError(node)"
@@ -152,6 +155,7 @@
         :theme="theme"
         :selectable="selectable"
         :image-skeleton="imageSkeleton"
+      :show-image-error="showImageError"
         parent-tag="pre"
         v-bind="forwardEvents"
       />
@@ -175,6 +179,7 @@
       :theme="theme"
       :selectable="selectable"
       :image-skeleton="imageSkeleton"
+      :show-image-error="showImageError"
       parent-tag="blockquote"
       v-bind="forwardEvents"
     />
@@ -195,6 +200,7 @@
         :theme="theme"
         :selectable="selectable"
         :image-skeleton="imageSkeleton"
+      :show-image-error="showImageError"
         parent-tag="table"
         v-bind="forwardEvents"
       />
@@ -214,6 +220,7 @@
       :theme="theme"
       :selectable="selectable"
       :image-skeleton="imageSkeleton"
+      :show-image-error="showImageError"
       parent-tag="tr"
       v-bind="forwardEvents"
     />
@@ -236,6 +243,7 @@
       :theme="theme"
       :selectable="selectable"
       :image-skeleton="imageSkeleton"
+      :show-image-error="showImageError"
       :parent-tag="node.name"
       v-bind="forwardEvents"
     />
@@ -258,6 +266,7 @@
         :theme="theme"
         :selectable="selectable"
         :image-skeleton="imageSkeleton"
+      :show-image-error="showImageError"
         parent-tag="li"
         v-bind="forwardEvents"
       />
@@ -285,6 +294,7 @@
       :theme="theme"
       :selectable="selectable"
       :image-skeleton="imageSkeleton"
+      :show-image-error="showImageError"
       v-bind="forwardEvents"
     />
   </view>
@@ -307,6 +317,7 @@ const props = withDefaults(
     theme?: ThemeConfig;
     selectable?: boolean;
     imageSkeleton?: boolean;
+    showImageError?: boolean;
     imageLinkAction?: 'link' | 'preview' | 'both';
     indexInList?: number;
     parentTag?: string;
@@ -316,6 +327,7 @@ const props = withDefaults(
     theme: () => ({}),
     selectable: false,
     imageSkeleton: true,
+    showImageError: false,
     imageLinkAction: 'link',
     indexInList: 0,
     parentTag: '',

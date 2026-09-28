@@ -21,6 +21,7 @@ interface OmniImageProps {
   imageLinkAction?: 'link' | 'preview' | 'both';
   imageSkeleton?: boolean;
   imageSkeletonColor?: string;
+  showImageError?: boolean;
   onImageTap: (src: string, node: ASTNode) => void;
   onLinkTap?: (href: string, node: ASTNode) => void;
 }
@@ -38,6 +39,7 @@ const OmniImage: React.FC<OmniImageProps> = ({
   imageLinkAction = 'link',
   imageSkeleton = true,
   imageSkeletonColor = '#f1f5f9',
+  showImageError = false,
   onImageTap,
   onLinkTap
 }) => {
@@ -76,6 +78,10 @@ const OmniImage: React.FC<OmniImageProps> = ({
     }
   };
 
+  if (hasError && !showImageError) {
+    return null;
+  }
+
   if (node.extra?.isIcon) {
     const rawW = node.styleObj?.width || node.attrs.width;
     const rawH = node.styleObj?.height || node.attrs.height;
@@ -86,6 +92,7 @@ const OmniImage: React.FC<OmniImageProps> = ({
         <Image
           source={{ uri: src }}
           style={{ width: w, height: h, resizeMode: 'contain' }}
+          onError={handleError}
         />
       </Pressable>
     );
@@ -144,6 +151,7 @@ export interface RnNodeRendererProps {
   customRender?: (node: ASTNode) => React.ReactNode | null;
   theme?: ThemeConfig;
   imageSkeleton?: boolean;
+  showImageError?: boolean;
   imageLinkAction?: 'link' | 'preview' | 'both';
   /** 0-based position of this node within its parent list (ul/ol) */
   indexInList?: number;
@@ -185,6 +193,7 @@ export const RnNodeRenderer: React.FC<RnNodeRendererProps> = React.memo(({
   customRender,
   theme,
   imageSkeleton = true,
+  showImageError = false,
   imageLinkAction = 'link',
   indexInList,
   parentTag,
@@ -204,6 +213,7 @@ export const RnNodeRenderer: React.FC<RnNodeRendererProps> = React.memo(({
       imageLinkAction={imageLinkAction}
       theme={theme}
       imageSkeleton={imageSkeleton}
+      showImageError={showImageError}
       onLinkTap={onLinkTap}
       onImageTap={onImageTap}
       onLongPressText={onLongPressText}
@@ -323,6 +333,7 @@ export const RnNodeRenderer: React.FC<RnNodeRendererProps> = React.memo(({
         imageLinkAction={imageLinkAction}
         imageSkeleton={imageSkeleton}
         imageSkeletonColor={theme?.imageSkeletonColor}
+        showImageError={showImageError}
         onImageTap={onImageTap}
         onLinkTap={onLinkTap}
       />

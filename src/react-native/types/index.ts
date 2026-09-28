@@ -64,6 +64,12 @@ export interface UniversalRichTextProps {
   imageSkeleton?: boolean;
 
   /**
+   * Whether to show fallback placeholder on image load failure.
+   * Default: false (hides failed images).
+   */
+  showImageError?: boolean;
+
+  /**
    * Custom node renderer override. Return a React element to replace the
    * default rendering for that node, or return null / undefined to fall
    * through to the built-in renderer.

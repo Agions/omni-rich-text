@@ -42,6 +42,7 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
   fontScale,
   components,
   imageSkeleton = true,
+  showImageError = false,
   imageLinkAction = 'link',
   theme,
   onLinkTap,
@@ -261,6 +262,7 @@ export const UniversalRichText: React.FC<UniversalRichTextProps> = ({
           node={node}
           components={components}
           imageSkeleton={imageSkeleton}
+          showImageError={showImageError}
           imageLinkAction={imageLinkAction}
           theme={theme}
           onLinkClick={handleLinkClick}

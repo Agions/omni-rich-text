@@ -18,10 +18,23 @@ Component({
     /** Inherited link href from parent <a> tag */
     parentLinkHref: { type: String, value: '' },
     /** Action when tapping an image that has a link: 'link' | 'preview' | 'both' */
-    imageLinkAction: { type: String, value: 'link' }
+    imageLinkAction: { type: String, value: 'link' },
+    /** Whether to display broken image placeholder */
+    showImageError: { type: Boolean, value: false }
+  },
+
+  data: {
+    hasError: false
   },
 
   methods: {
+    /**
+     * Fired when an image fails to load.
+     */
+    onImageError(e) {
+      this.setData({ hasError: true });
+    },
+
     /**
      * Fired when an <a> element is tapped.
      * Propagates { href, node } up the component tree.

@@ -5,6 +5,7 @@
     node="{{item}}"
     theme="{{theme}}"
     imageLinkAction="{{imageLinkAction}}"
+    showImageError="{{showImageError}}"
     bind:linkTap="onLinkTap"
     bind:imageTap="onImageTap"
     bind:longPressText="onLongPressText"

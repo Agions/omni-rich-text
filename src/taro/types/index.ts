@@ -78,5 +78,7 @@ export interface UniversalRichTextProps {
   >;
   /** Enable skeleton placeholder and smooth fade-in for images. Default is true */
   imageSkeleton?: boolean;
+  /** Whether to show a fallback placeholder when an image fails to load. Default is false (hides failed images). */
+  showImageError?: boolean;
 }
 

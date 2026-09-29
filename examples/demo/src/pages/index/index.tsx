@@ -3,7 +3,6 @@ import { View, Text } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { OmniRichText } from "omni-rich-text/taro";
 import { LONG_ARTICLE_SAMPLE } from "./long-article";
-import { EXHIBITION_SAMPLE } from "./exhibition-sample";
 import { ProductCard } from "../../components/ProductCard";
 const WX_ARTICLE_SAMPLE = `
 <div id="js_article" class="rich_media">
@@ -182,7 +181,7 @@ const MD_SAMPLE = `
 [点击查看内部商品页](/pages/detail/goods?from=markdown)
 `;
 
-type ModeType = "wechat" | "exhibition" | "long_article" | "html" | "markdown";
+type ModeType = "wechat" | "long_article" | "html" | "markdown";
 
 export default function Index() {
   const [mode, setMode] = useState<ModeType>("wechat");
@@ -194,8 +193,6 @@ export default function Index() {
     switch (mode) {
       case "wechat":
         return WX_ARTICLE_SAMPLE;
-      case "exhibition":
-        return EXHIBITION_SAMPLE;
       case "long_article":
         return LONG_ARTICLE_SAMPLE;
       case "html":
@@ -227,7 +224,6 @@ export default function Index() {
       >
         {[
           { key: "wechat", label: "📰 微信公众号" },
-          { key: "exhibition", label: "🇧🇷 展会图文案例" },
           { key: "long_article", label: "🔥 万字深度长文 (流式)" },
           { key: "html", label: "HTML 基础" },
           { key: "markdown", label: "Markdown" },
@@ -340,7 +336,7 @@ export default function Index() {
         style={{
           backgroundColor: "#ffffff",
           borderRadius: 8,
-          padding: mode === "wechat" || mode === "exhibition" ? 0 : 14,
+          padding: mode === "wechat" ? 0 : 14,
           boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
           overflow: "hidden",
         }}
@@ -348,7 +344,7 @@ export default function Index() {
         <OmniRichText
           content={getContent()}
           format={mode === "markdown" ? "markdown" : "html"}
-          mode={mode === "long_article" || mode === "wechat" || mode === "exhibition" ? "wechat" : "default"}
+          mode={mode === "long_article" || mode === "wechat" ? "wechat" : "default"}
           fontScale={fontScale}
           fontSize={fontSize}
           chunked={mode === "long_article"}

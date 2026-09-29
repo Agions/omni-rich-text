@@ -44,6 +44,14 @@ export interface ASTNode {
     isIcon?: boolean;
     /** Custom component tag marker */
     isCustom?: boolean;
+    /** Whether the direct parent of this node is a flex container (display: flex / inline-flex) */
+    parentIsFlex?: boolean;
+    /** Whether this tag is inherently an inline tag (span, strong, em, etc.) */
+    isInlineTag?: boolean;
+    /** Whether this node and all its descendants are purely inline text flow */
+    isInline?: boolean;
+    /** Native default display value if not explicitly specified: 'inline', 'inline-block', or 'block' */
+    defaultDisplay?: string;
   };
 }
 

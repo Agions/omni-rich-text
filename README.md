@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/omni-rich-text"><img src="https://img.shields.io/npm/v/omni-rich-text.svg?color=cb3837" alt="npm version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
-  <img src="https://img.shields.io/badge/tests-51%20passed-brightgreen.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-62%20passed-brightgreen.svg" alt="Tests">
   <img src="https://img.shields.io/badge/build-tsup%20ESM%20%2B%20CJS%20%2B%20DTS-blue.svg" alt="Build Status">
   <a href="https://github.com/Agions/omni-rich-text"><img src="https://img.shields.io/github/stars/Agions/omni-rich-text?style=social" alt="GitHub stars"></a>
 </p>
@@ -21,30 +21,34 @@
 - **尺寸零丢失**：默认 `remScale: 1.0`，HTML 内容内联声明的 `margin`、`padding`、`border-radius`、`font-size` 等属性 **100% 原始呈现**，彻底解决移动端“元素原本有间距却间距丢失/变小”、“排版局促”等顽疾。
 - **智能防溢出保护**：仅对超出屏幕宽度的块级容器施加 `max-width: 100%` 响应式限制，保证小图标与多栏混排不失真、大卡片贴合屏幕不横向破边。
 
-### 2. 🏛️ 外层宿主零侵入与真实 DOM 层级保护
+### 2. 📐 原生语义标签属性继承与 Display 精准还原（Flex 弹性盒智能感知）
+- **语义标签天然属性保真**：无明确内联 `display` 样式要求时，严格遵循标签原本规范。如 `<span>`、`<strong>`、`<b>`、`<em>` 等行内标签默认保持行内流式布局（`inline` / `inline-block`），绝不强制渲染为块级标签（`block`），彻底杜绝行内文本与徽章被错误拆行、独占整行的问题。
+- **Flexbox 弹性盒父级上下文感知**：全面感知父级容器 `display: flex` / `inline-flex`（包括 `-webkit-flex`、`-webkit-box`），依据 W3C CSS 规范自动将子元素作为弹性项（Flex Item）处理，确保 `flex: 1`、弹性对齐、宽高响应在小程序端精准生效。
+
+### 3. 🏛️ 外层宿主零侵入与真实 DOM 层级保护
 - **杜绝背景色误覆盖**：宿主容器默认透明且零内边距（`padding: 0`），无人工注入的全局覆盖层。
 - **天然 DOM 隔离**：完全由内容节点自身（`<section>`、`<div>`、`<span>` 等）内联样式决定各节点的背景与延展范围，彻底消除“背景色覆盖全文章文字”或“背景色被外层固定 padding 挤压无法贴边”的渲染缺陷。
 
-### 3. 🖼️ 图片智能混排保真与异常静默容错
+### 4. 🖼️ 图片智能混排保真与异常静默容错
 - **精准排版流**：智能识别图片是行内小图标（`display: inline-block`）、徽章、多栏图组还是单张大图，严格保留其内联指定的宽高；仅对全宽主图自适应撑满屏幕，杜绝小图撑爆成单行大图。
 - **告别排版跳跃（Zero CLS）**：结合微信文章 `data-ratio` 比例骨架屏，在网络图片就绪前精准预占位，滑屏体验丝滑不抖动。
 - **失败彻底静默（Silent Fallback）**：当遇到 404、防盗链拦截或网络中断导致图片加载失败时，**彻底静默隐藏（不渲染破裂占位符）**，绝不出现任何粗糙的虚线框或“图片加载失败”灰色提示撕裂排版视觉。
 
-### 4. ⚡ AST 解析 LRU 内存高速缓存
+### 5. ⚡ AST 解析 LRU 内存高速缓存
 - 内置零依赖 32 位 FNV-1a 哈希与 LRU 缓存池（默认容量 50 条）。
 - 页面回退、列表复用或重新挂载时 **0ms 瞬间还原**，彻底杜绝重复的正则分词、样式内联与 DOM 树构建开销。
 - 支持通过 `cache: false` 禁用，并对外导出 `clearASTCache()` 和 `getASTCacheSize()` 控制接口。
 
-### 5. 📜 超长图文按需触底追加 (Scroll Append)
+### 6. 📜 超长图文按需触底追加 (Scroll Append)
 - **拒绝首屏卡顿**：支持 `appendMode: 'scroll'` 模式，首屏仅加载首批 chunk（如 15 个根节点）。
 - **视口哨兵探测**：通过底部 `IntersectionObserver` 哨兵自动感知用户滚动，临近视口底部（350px 缓冲带）时才动态挂载下一批节点，极大节省深层 DOM 与内存开销。
 - **平滑空闲调度**：在 `stream` 模式下采用 `requestIdleCallback` 调频，不阻塞主线程手势交互与动画。
 
-### 6. 📰 微信公众号全特性深度对齐
+### 7. 📰 微信公众号全特性深度对齐
 - **全特性无损呈现**：完整支持微信 SVG 矢量图与纹理、深层嵌套 Section 结构、CSS `background-image` 背景图纹理，安全过滤无用的微信专有空白审计标签（如 `mpvoice`、`mp-vote` 等）。
 - **开箱即用原生全功能交互**：内置图片点击全屏画廊预览（多图滑动与手势双击）、链接智能路由分发、长按自由选择与复制。
 
-### 7. 📦 标准预编译产物与现代化单包分发
+### 8. 📦 标准预编译产物与现代化单包分发
 - 使用 `tsup` 预编译打包，提供完整的 **ESM (`.mjs`)**、**CJS (`.js`)** 与 **TypeScript 类型声明 (`.d.ts`)**，开箱即用，无需依赖方强配 Babel/TS 转译规则。
 - 现代化子路径设计：`omni-rich-text/taro`、`omni-rich-text/uni`、`omni-rich-text/react-native`、`omni-rich-text/core`、`omni-rich-text/wechat`。
 

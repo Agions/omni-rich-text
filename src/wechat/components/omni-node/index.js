@@ -19,6 +19,8 @@ Component({
     parentLinkHref: { type: String, value: '' },
     /** Action when tapping an image that has a link: 'link' | 'preview' | 'both' */
     imageLinkAction: { type: String, value: 'link' },
+    /** Whether direct parent is a flexbox container */
+    parentIsFlex: { type: Boolean, value: false },
     /** Whether to display broken image placeholder */
     showImageError: { type: Boolean, value: false }
   },

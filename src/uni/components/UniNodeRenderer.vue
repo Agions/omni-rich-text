@@ -22,7 +22,7 @@
 
   <!-- 3. Inline formatting tags (span, strong, em, etc.) -->
   <text
-    v-else-if="INLINE_TAGS.has(node.name) && isAllInline(node)"
+    v-else-if="!isParentFlex && INLINE_TAGS.has(node.name) && isAllInline(node)"
     :class="['omni-inline', `omni-${node.name}`]"
     :style="node.styleObj"
     :user-select="selectable"
@@ -36,6 +36,7 @@
       :image-skeleton="imageSkeleton"
       :show-image-error="showImageError"
       :parent-tag="node.name"
+      :parent-is-flex="false"
       v-bind="forwardEvents"
     />
   </text>
@@ -276,11 +277,19 @@
   <!-- Line break <br> -->
   <text v-else-if="node.name === 'br'" class="omni-br">{{ '\n' }}</text>
 
-  <!-- Generic block (div, p, section, ul, ol, h1-h6, figure, etc.) -->
+  <!-- Generic block / inline element (div, p, section, span, ul, ol, h1-h6, figure, etc.) -->
   <view
     v-else
     :class="['omni-element', `omni-${node.name}`]"
-    :style="[{ maxWidth: '100%', boxSizing: 'border-box' }, (node.styleObj?.display === 'flex' || node.styleObj?.display === 'inline-flex') ? { minWidth: '0' } : {}, node.styleObj]"
+    :style="[
+      {
+        maxWidth: '100%',
+        boxSizing: 'border-box',
+        display: node.styleObj?.display || (isParentFlex ? 'block' : (INLINE_TAGS.has(node.name) ? 'inline-block' : 'block'))
+      },
+      (isCurrentFlex || isParentFlex) ? { minWidth: '0' } : {},
+      node.styleObj
+    ]"
     @tap="onNodeTap"
   >
     <uni-node-renderer
@@ -289,6 +298,7 @@
       :node="child"
       :index-in-list="idx"
       :parent-tag="node.name"
+      :parent-is-flex="isCurrentFlex"
       :parent-link-href="parentLinkHref"
       :image-link-action="imageLinkAction"
       :theme="theme"
@@ -311,7 +321,7 @@ export default {
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { ASTNode, ThemeConfig, INLINE_TAGS, isAllInline } from '../../core';
+import { ASTNode, ThemeConfig, INLINE_TAGS, isAllInline, isFlexDisplay } from '../../core';
 
 defineOptions({
   name: 'UniNodeRenderer',
@@ -330,6 +340,7 @@ const props = withDefaults(
     imageLinkAction?: 'link' | 'preview' | 'both';
     indexInList?: number;
     parentTag?: string;
+    parentIsFlex?: boolean;
     parentLinkHref?: string;
   }>(),
   {
@@ -340,9 +351,13 @@ const props = withDefaults(
     imageLinkAction: 'link',
     indexInList: 0,
     parentTag: '',
+    parentIsFlex: false,
     parentLinkHref: ''
   }
 );
+
+const isParentFlex = computed(() => props.parentIsFlex || !!props.node.extra?.parentIsFlex);
+const isCurrentFlex = computed(() => isFlexDisplay(props.node.styleObj?.display));
 
 const emit = defineEmits<{
   (e: 'linkTap', href: string, node: ASTNode): void;

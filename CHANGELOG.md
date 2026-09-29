@@ -4,6 +4,26 @@ All notable changes to `omni-rich-text` will be documented in this file.
 
 ---
 
+## [0.1.3] - 2026-09-29
+
+### 🎯 Native Display Semantics & Flex Container Layout Fidelity
+
+- **原生语义标签属性继承与 Display 精准还原**
+  - **默认展示行为回归原生 HTML 规范**：无明确内联 `display` 样式要求时，严格遵循标签原生属性展示。例如 `<span>`、`<strong>`、`<b>`、`<em>`、`<i>` 等行内标签默认保持行内流式布局（`inline` / `inline-block`），绝不强制渲染为块级标签（`block`），彻底杜绝行内文本与徽章被错误拆行、独占整行的问题。
+  - **Flexbox 弹性盒父级上下文感知与 Blockified 规范实现**：
+    - 全面支持父级容器 `display: flex` / `inline-flex`（包括 `-webkit-flex`、`-webkit-box`）上下文感知与自顶向下流转。
+    - 依据 W3C CSS Flexible Box Layout 规范，弹性容器内部的子元素自动作为弹性项（Flex Item），在小程序与跨端渲染层中以 Flex Item `<View>` 容器挂载，完美支持 `flex: 1`、`align-self`、弹性对齐与尺寸响应，避免因作为纯 `<Text>` 导致 Flex 布局失效。
+    - 当弹性容器中的子标签为行内标签时，内部文本继续保持行内渲染，而外层无缝参与父级 Flex 布局排版。
+  - **跨平台渲染层全面对齐**：
+    - **Taro**：`NodeRenderer` 新增 `parentIsFlex` 上下文传递与行内/块级 display 自适应兜底。
+    - **UniApp**：`UniNodeRenderer.vue` 统一 `parentIsFlex` 属性及 `:style` 计算规则。
+    - **React Native**：`RnNodeRenderer.tsx` 动态适配 Flex Item 与行内对齐。
+    - **微信原生小程序**：`omni-node` 组件支持 `parentIsFlex` 传递与 `display: inline-block` 原生 WXSS 类支持。
+  - **测试覆盖**：
+    - 新增 `display-flex.test.ts` 专项单测套件，全量单测通过率 100%（62 项测试全部通过）。
+
+---
+
 ## [0.1.2] - 2026-09-28
 
 ### 🚀 Major Improvements & Architecture Upgrades

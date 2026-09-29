@@ -8,6 +8,7 @@ import {
   WX_IGNORED_TAGS,
   SVG_TAGS
 } from '../sanitizer/whitelist';
+import { INLINE_TAGS, isFlexDisplay, getDefaultDisplay, isAllInline } from '../utils/inline';
 import {
   resolveNodeStyles,
   stringifyStyleObject,
@@ -226,6 +227,9 @@ function isInsidePre(stack: ASTNode[]): boolean {
             }
           }
         }
+        if (closingNode.extra) {
+          closingNode.extra.isInline = isAllInline(closingNode);
+        }
         // Pop back to the found tag
         stack.length = foundIndex;
       }
@@ -269,6 +273,10 @@ function isInsidePre(stack: ASTNode[]): boolean {
 
       const isWxIgnored = WX_IGNORED_TAGS.has(tagName);
       const isSvg = SVG_TAGS.has(tagName);
+      const currentParent = stack[stack.length - 1];
+      const parentIsFlex = isFlexDisplay(currentParent?.styleObj?.display);
+      const isInlineTag = INLINE_TAGS.has(tagName);
+      const defaultDisplay = getDefaultDisplay(tagName, parentIsFlex);
 
       const node: ASTNode = {
         id: generateNodeId(),
@@ -283,13 +291,19 @@ function isInsidePre(stack: ASTNode[]): boolean {
           isBlock: BLOCK_TAGS.has(tagName) || isCustomTag,
           isSvg,
           wxIgnored: isWxIgnored,
+          parentIsFlex,
+          isInlineTag,
+          defaultDisplay,
           dataRatio,
           aspectRatio,
           placeholderHeight
         }
       };
 
-      const currentParent = stack[stack.length - 1];
+      if (isSelfClosing && node.extra) {
+        node.extra.isInline = isAllInline(node);
+      }
+
       currentParent.children = currentParent.children || [];
       currentParent.children.push(node);
 
@@ -317,6 +331,19 @@ function isInsidePre(stack: ASTNode[]): boolean {
 
   const resultNodes = root.children || [];
   optimizeASTLayout(resultNodes);
+
+  function finalizeInlineStatus(nodes: ASTNode[]): void {
+    for (const node of nodes) {
+      if (node.children && node.children.length > 0) {
+        finalizeInlineStatus(node.children);
+      }
+      if (node.extra && node.extra.isInline === undefined) {
+        node.extra.isInline = isAllInline(node);
+      }
+    }
+  }
+  finalizeInlineStatus(resultNodes);
+
   return resultNodes;
 }
 
@@ -413,10 +440,20 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
       optimizeASTLayout(node.children);
 
       const isFlex =
-        node.styleObj?.display === 'flex' ||
-        node.styleObj?.display === 'inline-flex' ||
+        isFlexDisplay(node.styleObj?.display) ||
         node.styleStr?.includes('display: flex') ||
         node.styleStr?.includes('display: inline-flex');
+
+      if (isFlex) {
+        for (const child of node.children) {
+          if (child.type === 'element') {
+            child.extra = child.extra || {};
+            child.extra.parentIsFlex = true;
+            child.extra.defaultDisplay = 'block';
+            child.extra.isInline = isAllInline(child);
+          }
+        }
+      }
 
       const isColumn =
         node.styleObj?.['flex-direction'] === 'column' ||

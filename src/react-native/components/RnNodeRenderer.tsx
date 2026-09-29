@@ -8,7 +8,7 @@ import {
   Animated,
   StyleSheet
 } from 'react-native';
-import { ASTNode, MediaEventPayload, serializeSvgToXml, INLINE_TAGS, isAllInline } from '../../core';
+import { ASTNode, MediaEventPayload, serializeSvgToXml, INLINE_TAGS, isAllInline, isFlexDisplay } from '../../core';
 import { ThemeConfig } from '../types';
 import { cssToRn } from '../styles/cssToRn';
 
@@ -157,6 +157,8 @@ export interface RnNodeRendererProps {
   indexInList?: number;
   /** Tag name of the direct parent node (used for li bullet logic) */
   parentTag?: string;
+  /** Whether direct parent is a flexbox container */
+  parentIsFlex?: boolean;
   /** Enclosing anchor link href if inside <a> */
   parentLinkHref?: string;
 }
@@ -197,8 +199,12 @@ export const RnNodeRenderer: React.FC<RnNodeRendererProps> = React.memo(({
   imageLinkAction = 'link',
   indexInList,
   parentTag,
+  parentIsFlex = false,
   parentLinkHref
 }) => {
+  const isCurrentFlex = isFlexDisplay(node.styleObj?.display);
+  const isParentFlex = parentIsFlex || !!node.extra?.parentIsFlex;
+
   /**
    * Convenience wrapper that renders a child node with all context forwarded.
    * `pTag` defaults to the current node's tag so list items know their parent.
@@ -209,6 +215,7 @@ export const RnNodeRenderer: React.FC<RnNodeRendererProps> = React.memo(({
       node={child}
       indexInList={idx}
       parentTag={pTag}
+      parentIsFlex={isCurrentFlex}
       parentLinkHref={node.name === 'a' ? (node.attrs.href || '') : linkHref}
       imageLinkAction={imageLinkAction}
       theme={theme}
@@ -281,7 +288,7 @@ export const RnNodeRenderer: React.FC<RnNodeRendererProps> = React.memo(({
   }
 
   // ── 4. Inline formatting tags → nested <Text> tree ───────────────────────
-  if (INLINE_TAGS.has(node.name || '') && isAllInline(node)) {
+  if (!isParentFlex && INLINE_TAGS.has(node.name || '') && isAllInline(node)) {
     // Map each semantic tag to its equivalent RN text style
     const tagStyle: Record<string, any> = {};
     if (node.name === 'strong' || node.name === 'b') tagStyle.fontWeight = 'bold';
@@ -519,10 +526,18 @@ export const RnNodeRenderer: React.FC<RnNodeRendererProps> = React.memo(({
     );
   }
 
-  // ── 17. Generic block (div, p, section, ul, ol, h1-h6, figure, …) ───────
+  // ── 17. Generic block / inline element (div, p, section, span, ul, ol, h1-h6, figure, …) ───────
+  const isInline = !isParentFlex && INLINE_TAGS.has(node.name || '');
   const blockStyle = cssToRn(node.styleObj);
   return (
-    <View style={[styles.block, blockStyle as any]}>
+    <View
+      style={[
+        styles.block,
+        isInline ? { alignSelf: 'flex-start' } : {},
+        (isCurrentFlex || isParentFlex) ? { minWidth: 0 } : {},
+        blockStyle as any
+      ]}
+    >
       {node.children?.map((child, idx) => renderChild(child, idx, node.name))}
     </View>
   );

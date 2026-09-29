@@ -34,3 +34,10 @@
 .omni-th, .omni-td { flex: 1; }
 
 .omni-element { box-sizing: border-box; max-width: 100%; }
+
+.omni-span, .omni-strong, .omni-b, .omni-em, .omni-i, .omni-u, .omni-s,
+.omni-del, .omni-ins, .omni-strike, .omni-sub, .omni-sup, .omni-mark,
+.omni-small, .omni-big, .omni-font, .omni-label, .omni-abbr, .omni-cite,
+.omni-q, .omni-time, .omni-code {
+  display: inline-block;
+}

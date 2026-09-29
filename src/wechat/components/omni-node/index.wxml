@@ -252,11 +252,11 @@
 <!-- ⑭ Line Break <br> -->
 <text wx:elif="{{node.name === 'br'}}" class="omni-br">\n</text>
 
-<!-- ⑮ Generic block (div, p, section, ul, ol, h1-h6, span with block context, etc.) -->
+<!-- ⑮ Generic block / inline element (div, p, section, span, ul, ol, h1-h6, etc.) -->
 <view
   wx:else
   class="omni-element omni-{{node.name}}"
-  style="{{node.styleStr}}"
+  style="display:{{node.styleObj.display || (parentIsFlex || node.extra.parentIsFlex ? 'block' : (node.extra.isInlineTag ? 'inline-block' : 'block'))}};{{(node.styleObj.display === 'flex' || node.styleObj.display === 'inline-flex' || parentIsFlex || node.extra.parentIsFlex) ? 'min-width:0;' : ''}}{{node.styleStr}}"
   catch:tap="onNodeTap"
 >
   <omni-node
@@ -266,6 +266,7 @@
     theme="{{theme}}"
     index-in-list="{{index}}"
     parent-tag="{{node.name}}"
+    parentIsFlex="{{node.styleObj.display === 'flex' || node.styleObj.display === 'inline-flex' || node.styleObj.display === '-webkit-flex' || node.styleObj.display === '-webkit-box'}}"
     parentLinkHref="{{parentLinkHref}}"
     imageLinkAction="{{imageLinkAction}}"
     showImageError="{{showImageError}}"

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { View, Text, Image, Video, Audio, Button, ScrollView } from '@tarojs/components';
-import { ASTNode, MediaEventPayload, ThemeConfig, serializeSvgToXml, INLINE_TAGS, isAllInline } from '../../core';
+import { ASTNode, MediaEventPayload, ThemeConfig, serializeSvgToXml, INLINE_TAGS, isAllInline, isFlexDisplay, getDefaultDisplay } from '../../core';
 
 export interface NodeRendererProps {
   node: ASTNode;
@@ -30,6 +30,8 @@ export interface NodeRendererProps {
   indexInList?: number;
   /** Parent tag name for context */
   parentTag?: string;
+  /** Whether direct parent is a flexbox container */
+  parentIsFlex?: boolean;
   /** Enclosing anchor link href if inside <a> */
   parentLinkHref?: string;
   /** Action when tapping an image that has a link. 'link': navigate (default), 'preview': open gallery, 'both': both */
@@ -235,10 +237,14 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
   theme,
   indexInList,
   parentTag,
+  parentIsFlex = false,
   parentLinkHref,
   imageLinkAction = 'link',
   selectable = false
 }) => {
+  const isCurrentFlex = isFlexDisplay(node.styleObj?.display);
+  const isParentFlex = parentIsFlex || !!node.extra?.parentIsFlex;
+
   // Helper to render child nodes with forwarded context
   const renderChild = (child: ASTNode, idx?: number, pTag = node.name, linkHref = parentLinkHref) => (
     <NodeRenderer
@@ -246,6 +252,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
       node={child}
       indexInList={idx}
       parentTag={pTag}
+      parentIsFlex={isCurrentFlex}
       parentLinkHref={node.name === 'a' ? (node.attrs.href || '') : linkHref}
       imageLinkAction={imageLinkAction}
       components={components}
@@ -367,8 +374,8 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
     );
   }
 
-  // 4. Inline formatting tags (span, strong, em, etc.) when purely inline
-  if (INLINE_TAGS.has(node.name || '') && isAllInline(node)) {
+  // 4. Inline formatting tags (span, strong, em, etc.) when purely inline and parent is not flex
+  if (!isParentFlex && INLINE_TAGS.has(node.name || '') && isAllInline(node)) {
     return (
       <Text
         className={`omni-inline omni-${node.name}`}
@@ -645,17 +652,21 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
     return <Text className="omni-br">{'\n'}</Text>;
   }
 
-  // 16. Generic Block Elements (section, div, p, ul, ol, h1-h6, etc.)
-  const isFlex =
-    node.styleObj?.display === 'flex' ||
-    node.styleObj?.display === 'inline-flex';
+  // 16. Generic Block / Inline Elements (section, div, p, span, ul, ol, h1-h6, etc.)
+  const isFlex = isCurrentFlex;
+  const defaultDisplay = isParentFlex
+    ? 'block'
+    : (INLINE_TAGS.has(node.name || '') ? 'inline-block' : 'block');
+  const finalDisplay = node.styleObj?.display || defaultDisplay;
+
   return (
     <View
       className={`omni-element omni-${node.name}`}
       style={toTaroStyle({
         maxWidth: '100%',
         boxSizing: 'border-box',
-        ...(isFlex ? { minWidth: 0 } : {}),
+        ...(isFlex || isParentFlex ? { minWidth: 0 } : {}),
+        display: defaultDisplay,
         ...node.styleObj
       })}
       onClick={(e) => onNodeEvent?.('click', node, e)}

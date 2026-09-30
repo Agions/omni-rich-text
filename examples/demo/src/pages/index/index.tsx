@@ -252,7 +252,70 @@ const CLAMP_SAMPLE = `
 </div>
 `;
 
-type ModeType = "wechat" | "long_article" | "clamp" | "custom_html" | "html" | "markdown";
+const XIUMI_135_SAMPLE = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; box-sizing: border-box; width: 100%;">
+  <!-- 1. 135 编辑器 SVG 矢量底板与 HTML 穿透卡片 -->
+  <section style="margin: 0 0 20px 0; width: 100%; box-sizing: border-box;">
+    <svg viewBox="0 0 375 200" style="width: 100%; display: block; border-radius: 12px; box-shadow: 0 4px 16px rgba(7, 193, 96, 0.15);">
+      <rect width="100%" height="100%" fill="#f6ffed" stroke="#b7eb8f" stroke-width="1.5" rx="12" />
+      <circle cx="340" cy="30" r="40" fill="rgba(82, 196, 26, 0.12)" />
+      <foreignObject width="100%" height="100%">
+        <div style="padding: 16px 18px; box-sizing: border-box;">
+          <span style="background: #52c41a; color: #fff; font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 10px;">135 模板</span>
+          <h3 style="margin: 8px 0 4px 0; font-size: 17px; color: #135200; font-weight: bold;">SVG 矢量底板与 HTML 穿透卡片</h3>
+          <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #389e0d;">底层渲染原生渐变矢量圆与圆角矩形，表层支持标准富文本段落、高保真内联链接与完整交互。</p>
+          <p style="margin: 8px 0 0 0;"><a href="https://135editor.com" style="color: #096dd9; font-size: 13px; font-weight: bold; text-decoration: underline;">👉 点击测试 135 编辑器外链智能跳转</a></p>
+        </div>
+      </foreignObject>
+    </svg>
+  </section>
+
+  <!-- 2. 秀米积木式双列混排 (Inline-Block 48.5% + font-size: 0 消除空白裂隙) -->
+  <section style="text-align: center; font-size: 0; margin: 18px 0; width: 100%; box-sizing: border-box;">
+    <section style="display: inline-block; width: 48.5%; vertical-align: top; font-size: 14px; text-align: left; box-sizing: border-box; background: #fffbe6; border: 1px solid #ffe58f; border-radius: 8px; padding: 12px; margin-right: 3%;">
+      <h4 style="margin: 0 0 4px 0; color: #d48806; font-size: 14px; font-weight: bold;">左分栏积木卡片</h4>
+      <p style="margin: 0; font-size: 12px; color: #874d00; line-height: 1.55;">秀米经典双栏积木布局，天然支持 font-size:0 消除元素间隙，绝不换行掉列。</p>
+    </section>
+    <section style="display: inline-block; width: 48.5%; vertical-align: top; font-size: 14px; text-align: left; box-sizing: border-box; background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 8px; padding: 12px;">
+      <h4 style="margin: 0 0 4px 0; color: #096dd9; font-size: 14px; font-weight: bold;">右分栏积木卡片</h4>
+      <p style="margin: 0; font-size: 12px; color: #003a8c; line-height: 1.55;">两列自适应等高并排，样式精准还原，文字自动折行排版稳定。</p>
+    </section>
+  </section>
+
+  <!-- 3. 秀米负边距叠层徽章与倾斜贴纸 -->
+  <section style="position: relative; margin: 26px 0 18px 0; padding: 16px 14px 12px 14px; background: #f8fafc; border-radius: 10px; border: 1px dashed #cbd5e1; box-sizing: border-box;">
+    <section style="position: absolute; top: -14px; left: 16px; transform: rotate(-2deg); background: linear-gradient(135deg, #ff4d4f 0%, #f5222d 100%); color: #fff; font-size: 11px; font-weight: bold; padding: 3px 10px; border-radius: 4px; box-shadow: 0 2px 6px rgba(245,34,45,0.3);">
+      秀米叠层贴纸 📌
+    </section>
+    <p style="margin: 0; font-size: 13px; color: #334155; line-height: 1.65;">
+      负边距与绝对定位徽章完美贴合在外框上沿，旋转角度（-2deg）与外阴影自然呈现，杜绝错位变形与圆角穿透。
+    </p>
+  </section>
+
+  <!-- 4. 不对称 Flex 人物卡片 (头像 56px + 介绍 flex: 1) -->
+  <section style="display: flex; align-items: center; padding: 14px; background: #fdf2f8; border-radius: 10px; border: 1px solid #fbcfe8; margin: 18px 0; box-sizing: border-box;">
+    <div style="width: 56px; height: 56px; flex-shrink: 0; margin-right: 12px;">
+      <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop" width="56" height="56" style="width: 56px; height: 56px; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+    </div>
+    <div style="flex: 1; min-width: 0;">
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <h4 style="margin: 0; font-size: 15px; font-weight: bold; color: #831843;">特约视觉设计师</h4>
+        <span style="background: #f472b6; color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 10px;">认证专家</span>
+      </div>
+      <p style="margin: 4px 0 0 0; font-size: 12px; color: #9d174d; line-height: 1.5;">不对称 Flex 布局保证 56px 头像永不被强制拉伸或均分，文本弹性占满剩余空间。</p>
+    </div>
+  </section>
+
+  <!-- 5. Data URI SVG 矢量纹理背景容器 -->
+  <section style="background-image: url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 20 20\"><circle cx=\"2\" cy=\"2\" r=\"2\" fill=\"%23cbd5e1\"/></svg>'); padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; margin: 18px 0; box-sizing: border-box;">
+    <p style="margin: 0; font-size: 13px; color: #475569; line-height: 1.65;">
+      ✨ <strong>SVG 矢量波点底纹：</strong>样式分词器安全保护 Data URI 内的分号，波点底纹无损呈现，杜绝背景丢失。
+    </p>
+  </section>
+</div>
+`;
+
+type ModeType = "wechat" | "xiumi_135" | "long_article" | "clamp" | "custom_html" | "html" | "markdown";
 
 export default function Index() {
   const [mode, setMode] = useState<ModeType>("wechat");
@@ -281,6 +344,8 @@ export default function Index() {
     switch (mode) {
       case "wechat":
         return WX_ARTICLE_SAMPLE;
+      case "xiumi_135":
+        return XIUMI_135_SAMPLE;
       case "long_article":
         return LONG_ARTICLE_SAMPLE;
       case "clamp":
@@ -296,6 +361,7 @@ export default function Index() {
 
   const TABS: { key: ModeType; label: string; icon: string }[] = [
     { key: "wechat", label: "公众号", icon: "📰" },
+    { key: "xiumi_135", label: "秀米135", icon: "🎨" },
     { key: "long_article", label: "长文流式", icon: "🔥" },
     { key: "clamp", label: "截断裁剪", icon: "✂️" },
     { key: "custom_html", label: "自定义", icon: "🛠️" },

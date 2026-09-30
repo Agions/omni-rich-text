@@ -59,19 +59,26 @@ export function hasVisualStyles(node: ASTNode): boolean {
     if (!isNaN(num) && num > 0) return true;
   }
 
+  // 6. Margin Spacers (intentional non-zero margins e.g. <section style="margin-top: 20px;"></section>)
+  const margin = styles['margin'] || styles['margin-top'] || styles['marginTop'] || styles['margin-bottom'] || styles['marginBottom'];
+  if (margin) {
+    const num = parseFloat(margin);
+    if (!isNaN(num) && num !== 0) return true;
+  }
+
   return false;
 }
 
 /**
  * Checks if a node has layout/positioning styles that affect its descendants
- * (e.g. flexbox, absolute positioning, overflow).
+ * (e.g. flexbox, absolute positioning, text alignment, overflow).
  */
 export function hasLayoutStyles(node: ASTNode): boolean {
   const styles = node.styleObj;
   if (!styles || Object.keys(styles).length === 0) return false;
 
   const display = styles['display'];
-  if (display && (display.includes('flex') || display.includes('grid'))) return true;
+  if (display && (display.includes('flex') || display.includes('grid') || display === 'inline-block')) return true;
 
   const pos = styles['position'];
   if (pos && (pos === 'absolute' || pos === 'fixed' || pos === 'relative')) return true;
@@ -84,6 +91,14 @@ export function hasLayoutStyles(node: ASTNode): boolean {
 
   const transform = styles['transform'];
   if (transform && transform !== 'none') return true;
+
+  // text-align establishes inline-block centering context for descendants
+  const textAlign = styles['text-align'] || styles['textAlign'];
+  if (textAlign && textAlign !== 'inherit' && textAlign !== 'initial') return true;
+
+  // Explicit widths or max-widths
+  const width = styles['width'] || styles['max-width'] || styles['min-width'];
+  if (width && width !== '100%') return true;
 
   return false;
 }
@@ -178,6 +193,14 @@ export function isUnwrappableWrapper(node: ASTNode): boolean {
 
   // Must not have an anchor ID
   if (node.attrs?.id) return false;
+
+  // Must not have editor template classes or data attributes (Xiumi / 135editor layout containers)
+  if (node.attrs?.class && /xmtpl|135|layout|brush|title|header|card/i.test(node.attrs.class)) {
+    return false;
+  }
+  if (node.attrs && (node.attrs['data-tools'] || node.attrs['data-id'] || node.attrs['data-brushtype'])) {
+    return false;
+  }
 
   // Must not have visual or layout styles
   if (hasVisualStyles(node) || hasLayoutStyles(node)) return false;

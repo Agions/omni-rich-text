@@ -257,7 +257,8 @@ function isInsidePre(stack: ASTNode[]): boolean {
         options.remScale ?? DEFAULT_REM_SCALE,
         options.baseFontSize,
         options.contentBaseFontSize,
-        options.fontSizeResolver
+        options.fontSizeResolver,
+        parsedAttrs
       );
 
       // Pre-calculate image aspect ratio and placeholder height from attrs & style
@@ -348,30 +349,40 @@ function isInsidePre(stack: ASTNode[]): boolean {
 }
 
 /**
- * Helper to identify if an <img> represents a small inline icon or emoji sticker (<= 40px)
+ * Converts length value with px, rem, rpx, or pure number into pixels
  */
-function isIconImage(node: ASTNode): boolean {
+function parseLengthToPx(raw: any, rootFontSize: number = WECHAT_REM_BASE): number | undefined {
+  if (typeof raw === 'number') return raw;
+  if (!raw || typeof raw !== 'string') return undefined;
+  const s = raw.trim();
+  const m = s.match(/^([+-]?[\d.]+)\s*(px|rem|rpx|em|pt)?$/i);
+  if (!m) return undefined;
+  const num = parseFloat(m[1]);
+  if (isNaN(num)) return undefined;
+  const unit = (m[2] || 'px').toLowerCase();
+  if (unit === 'rem' || unit === 'em') return num * rootFontSize;
+  if (unit === 'rpx') return num / 2;
+  if (unit === 'pt') return (num * 4) / 3;
+  return num;
+}
+
+/**
+ * Helper to identify if an <img> represents a small inline icon, avatar, or emoji sticker (<= 80px)
+ */
+function isIconImage(node: ASTNode, rootFontSize: number = WECHAT_REM_BASE): boolean {
   if (node.name !== 'img') return false;
   const rawClass = node.attrs?.class || '';
   if (/wx_emoji|emoji|icon/i.test(rawClass)) return true;
 
-  const rawW = node.attrs?.width || node.styleObj?.width;
-  const rawH = node.attrs?.height || node.styleObj?.height;
+  const wPx = parseLengthToPx(node.styleObj?.width || node.attrs?.width, rootFontSize);
+  const hPx = parseLengthToPx(node.styleObj?.height || node.attrs?.height, rootFontSize);
 
-  let wNum: number | undefined;
-  let hNum: number | undefined;
-
-  if (rawW) {
-    const m = String(rawW).match(/^([\d.]+)(px)?$/i);
-    if (m) wNum = parseFloat(m[1]);
+  // Explicit small icons, avatars, and stickers <= 80px
+  if ((wPx !== undefined && wPx > 0 && wPx <= 80) || (hPx !== undefined && hPx > 0 && hPx <= 80)) {
+    return true;
   }
-  if (rawH) {
-    const m = String(rawH).match(/^([\d.]+)(px)?$/i);
-    if (m) hNum = parseFloat(m[1]);
-  }
-
-  // Explicit small icons / stickers <= 40px
-  if ((wNum !== undefined && wNum > 0 && wNum <= 40) || (hNum !== undefined && hNum > 0 && hNum <= 40)) {
+  // Check inline display with small dimension
+  if (node.styleObj?.display === 'inline-block' && wPx !== undefined && wPx <= 120) {
     return true;
   }
   return false;
@@ -459,15 +470,36 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
         node.styleObj?.['flex-direction'] === 'column' ||
         node.styleObj?.['flex-flow']?.includes('column');
 
-      // 1. Flex container multi-column image optimization for mobile:
-      // Only when a flex row contains multiple columns with images,
-      // prevent images from overflowing screen by setting flex: 1 1 0% and proportional width.
-      // Non-image flex containers are kept 100% faithful to their original copied styles.
+      // 1. Flex container multi-column gallery optimization for mobile:
+      // When ALL columns in a flex row contain images (pure multi-image grid from WeChat editor),
+      // balance them to (100 / count)% and flex: 1 1 0% so they do not overflow mobile viewport.
+      // Asymmetric cards (e.g. avatar 80px + text bio flex:1, icon + title, or 30% + 70% photos)
+      // are recognized as intentional and kept 100% faithful to their authored styles.
       if (isFlex && !isColumn) {
         const elemChildren = node.children.filter((c) => c.type === 'element');
         const hasImg = elemChildren.some(hasDescendantImage);
+        const allHaveImg = elemChildren.length > 1 && elemChildren.every(hasDescendantImage);
 
+        let isAsymmetricLayout = false;
         if (elemChildren.length > 1 && hasImg) {
+          if (!allHaveImg) {
+            // Some columns have images while others do not (e.g. avatar + text card)
+            isAsymmetricLayout = true;
+          } else {
+            // All columns have images: check if explicit percentage widths are intentionally unequal
+            const percentWidths = elemChildren
+              .map((c) => c.styleObj?.width)
+              .filter((w): w is string => !!w && w.endsWith('%'));
+            if (percentWidths.length === elemChildren.length) {
+              const first = percentWidths[0];
+              if (!percentWidths.every((w) => w === first)) {
+                isAsymmetricLayout = true;
+              }
+            }
+          }
+        }
+
+        if (elemChildren.length > 1 && hasImg && !isAsymmetricLayout) {
           node.styleObj = node.styleObj || {};
           node.styleObj['box-sizing'] = node.styleObj['box-sizing'] || 'border-box';
           node.styleObj['max-width'] = node.styleObj['max-width'] || '100%';

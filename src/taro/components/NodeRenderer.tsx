@@ -1,6 +1,18 @@
 import * as React from 'react';
 import { View, Text, Image, Video, Audio, Button, ScrollView } from '@tarojs/components';
-import { ASTNode, MediaEventPayload, ThemeConfig, serializeSvgToXml, INLINE_TAGS, isAllInline, isFlexDisplay, getDefaultDisplay } from '../../core';
+import {
+  ASTNode,
+  MediaEventPayload,
+  ThemeConfig,
+  serializeSvgToXml,
+  INLINE_TAGS,
+  isAllInline,
+  isFlexDisplay,
+  getDefaultDisplay,
+  extractSvgViewBoxRatio,
+  hasForeignObject,
+  splitSvgForeignObject
+} from '../../core';
 
 export interface NodeRendererProps {
   node: ASTNode;
@@ -342,10 +354,68 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
     );
   }
 
-  // 3. SVG Element <svg> -> Encoded as SVG Data URI for cross-platform image rendering
+  // 3. SVG Element <svg> -> Smart Layout Container or SVG Data URI
   if (node.name === 'svg') {
+    // 3.1 Check if this SVG is an interactive layout container containing <foreignObject>
+    if (hasForeignObject(node)) {
+      const { bgSvgXml, foreignObjectNodes } = splitSvgForeignObject(node);
+      const vbRatio = extractSvgViewBoxRatio(node);
+      const bgDataUri = bgSvgXml ? `data:image/svg+xml;utf8,${encodeURIComponent(bgSvgXml)}` : undefined;
+
+      const rawW = node.styleObj?.width || (node.attrs.width ? `${node.attrs.width}px` : '100%');
+      const rawH = node.styleObj?.height || (node.attrs.height ? `${node.attrs.height}px` : undefined);
+
+      return (
+        <View
+          className="omni-svg-layout-wrap"
+          style={toTaroStyle({
+            position: 'relative',
+            display: node.styleObj?.display || 'block',
+            width: rawW,
+            maxWidth: '100%',
+            boxSizing: 'border-box',
+            ...(rawH ? { height: rawH } : {}),
+            ...(vbRatio && !rawH ? { aspectRatio: String(vbRatio) } : {}),
+            ...node.styleObj
+          })}
+        >
+          {bgDataUri && (
+            <Image
+              className="omni-svg-layout-bg"
+              src={bgDataUri}
+              mode={rawW && rawH ? 'scaleToFill' : 'widthFix'}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                pointerEvents: 'none'
+              }}
+            />
+          )}
+          <View
+            className="omni-svg-layout-content"
+            style={{
+              position: 'relative',
+              zIndex: 1,
+              width: '100%',
+              height: '100%',
+              boxSizing: 'border-box'
+            }}
+          >
+            {foreignObjectNodes.map((fo) =>
+              fo.children?.map((child, idx) => renderChild(child, idx, 'foreignobject'))
+            )}
+          </View>
+        </View>
+      );
+    }
+
+    // 3.2 Standard Vector SVG -> Encoded as SVG Data URI
     const svgXml = serializeSvgToXml(node);
     const svgDataUri = `data:image/svg+xml;utf8,${encodeURIComponent(svgXml)}`;
+    const vbRatio = extractSvgViewBoxRatio(node);
 
     // Read width and height from style or attrs
     let attrWidth = node.attrs.width
@@ -387,6 +457,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
           flexShrink: 0,
           ...(width ? { width } : {}),
           ...(height ? { height } : {}),
+          ...(vbRatio && !height ? { aspectRatio: String(vbRatio) } : {}),
           maxWidth: '100%',
           ...node.styleObj
         })}

@@ -4,6 +4,36 @@ All notable changes to `omni-rich-text` will be documented in this file.
 
 ---
 
+## [0.1.6] - 2026-09-30
+
+### 🎨 秀米与 135 编辑器 100% 深度排版还原支持（Xiumi & 135 Editor Full Fidelity）
+
+- **🖼️ SVG ForeignObject 原生穿透与矢量底板双层渲染**
+  - **杜绝 SVG 内嵌 HTML 白屏/丢失**：全面支持 `<foreignObject>` 标签与复杂内嵌 DOM。针对 135 / 秀米编辑器常用的“SVG 矢量边框/背景 + `<foreignObject>` 富文本”复合卡片，自动将底层矢量图层与上层 HTML 交互内容解耦，上层 DOM 以原生组件全功能呈现（文字可选、链接可点、样式 1:1），告别小程序端图片化白屏缺陷。
+  - **SVG 矢量自然比例保真**：自动提取 `viewBox` 几何比例（`vbRatio`），在缺少显式 `height` 时注入自适应宽高比（`aspectRatio`）与 `preserveAspectRatio="xMidYMid meet"`，杜绝横幅 Banner 矢量图高度塌陷。
+  - **SVG 严格规范大小写还原**：在 XML 序列化中完整恢复 `viewBox`、`preserveAspectRatio`、`gradientUnits`、`gradientTransform`、`clipPathUnits`、`patternUnits` 等驼峰属性，彻底消除跨平台 XML 解析异常。
+
+- **🛡️ 状态机样式分词器（防分号截断 Data URI）**
+  - 重构 `parseStyleString` 为状态机解析器，严格感知单引号 `'...'`、双引号 `"..."` 及括号闭合层级 `url(...)`、`calc(...)`、`linear-gradient(...)`。
+  - 彻底解决秀米/135 在 `background-image` 中内联带分号的 SVG Data URI 或 Base64 纹理背景时被错误截断丢失样式的核心顽疾。
+
+- **📐 不对称 Flex 布局保护与属性优先级保真**
+  - 严格区分“纯多图等分画廊”与“不对称图文卡片”（如 56px 头像 + `flex: 1` 介绍、图标 + 标题、30% + 70% 比例分栏）。仅在所有列均为图片的对称画廊中执行均分均衡；针对不对称卡片 100% 保持作者原著尺寸与 `flex` 规则，坚决杜绝头像被挤压拉伸为 50% 畸形。
+  - 增强 `isIconImage` 识别机制，支持 `rem` 换算回像素感知（80px 以内小图、行内徽章、emoji 表情自动保留原始宽高，不被强制放大撑满 100%）。
+
+- **🔤 秀米积木分栏 `font-size: 0` 缝隙消除保护**
+  - 修复 `font-size: 0` 在基准字号映射中被错误抬升为 `8px` 的问题，确保用于消除两列 `inline-block` 间隙的 `font-size: 0` 原始呈现，彻底杜绝秀米经典两列并排（49% + 49%）换行掉列问题。
+
+- **🌲 智能剪枝边界加固（保护外层居中容器与垂直留白）**
+  - `isUnwrappableWrapper` 智能识别 `text-align: center` 居中上下文与 `xmtpl`、`135editor`、`layout` 等编辑器专属模板类名及 `data-tools` 属性，坚决不解构包裹容器，确保内层徽章居中视觉效果稳固。
+  - `hasVisualStyles` 智能识别非零 `margin-top` / `margin-bottom` 占位块，杜绝作者设计的垂直呼吸间距被误剪。
+
+- **📱 Demo 交互升级与全套专项测试验证**
+  - Demo 新增「🎨 秀米135」专属演示 Tab，内置 SVG 穿透卡片、双栏积木、叠层贴纸、不对称人物介绍卡与矢量波点纹理 5 大经典实战案例。
+  - 新增 `xiumi-135.test.ts` 专项单测套件（9 项单测），全量 **92 项单测 100% 全部通过**。
+
+---
+
 ## [0.1.5] - 2026-09-30
 
 ### ✂️ 富文本排版裁剪体系：容器限高展开、AST 摘要截断与图片比例裁剪（Layout Clamping & Media Crop）

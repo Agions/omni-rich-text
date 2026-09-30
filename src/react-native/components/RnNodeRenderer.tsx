@@ -8,7 +8,17 @@ import {
   Animated,
   StyleSheet
 } from 'react-native';
-import { ASTNode, MediaEventPayload, serializeSvgToXml, INLINE_TAGS, isAllInline, isFlexDisplay } from '../../core';
+import {
+  ASTNode,
+  MediaEventPayload,
+  serializeSvgToXml,
+  INLINE_TAGS,
+  isAllInline,
+  isFlexDisplay,
+  extractSvgViewBoxRatio,
+  hasForeignObject,
+  splitSvgForeignObject
+} from '../../core';
 import { ThemeConfig } from '../types';
 import { cssToRn } from '../styles/cssToRn';
 
@@ -249,10 +259,23 @@ export const RnNodeRenderer: React.FC<RnNodeRendererProps> = React.memo(({
     );
   }
 
-  // ── 3. SVG → data URI ────────────────────────────────────────────────────
+  // ── 3. SVG → layout container or data URI ──────────────────────────────
   if (node.name === 'svg') {
+    if (hasForeignObject(node)) {
+      const { foreignObjectNodes } = splitSvgForeignObject(node);
+      const rnStyle = cssToRn(node.styleObj);
+      return (
+        <View style={[{ width: '100%' }, rnStyle as any]}>
+          {foreignObjectNodes.map((fo) =>
+            fo.children?.map((child, idx) => renderChild(child, idx, 'foreignobject'))
+          )}
+        </View>
+      );
+    }
+
     const svgXml = serializeSvgToXml(node);
     const uri = `data:image/svg+xml;utf8,${encodeURIComponent(svgXml)}`;
+    const vbRatio = extractSvgViewBoxRatio(node);
 
     // Prefer explicit attrs, then styleObj, then a safe fallback
     const rawW = node.styleObj?.width || node.attrs.width;
@@ -281,7 +304,7 @@ export const RnNodeRenderer: React.FC<RnNodeRendererProps> = React.memo(({
     return (
       <Image
         source={{ uri }}
-        style={{ width: w, height: h }}
+        style={[{ width: w, height: h }, vbRatio ? { aspectRatio: vbRatio } : undefined]}
         resizeMode="contain"
       />
     );

@@ -88,22 +88,63 @@ export const DIMENSION_PROPERTIES = new Set([
 ]);
 
 /**
- * Parses raw CSS style string into key-value map
+ * Parses raw CSS style string into key-value map.
+ * Robust state-machine tokenizer that respects quotes ('...', "...") and parentheses
+ * (url(...), calc(...), linear-gradient(...)) so semicolons inside Data URIs or URLs
+ * do not prematurely split style declarations.
  */
 export function parseStyleString(rawStyle: string): Record<string, string> {
   const result: Record<string, string> = {};
   if (!rawStyle || typeof rawStyle !== 'string') return result;
 
-  const declarations = rawStyle.split(';');
-  for (const decl of declarations) {
-    const colonIdx = decl.indexOf(':');
-    if (colonIdx === -1) continue;
-    const prop = decl.slice(0, colonIdx).trim().toLowerCase();
-    const val = decl.slice(colonIdx + 1).trim();
-    if (prop && val) {
-      result[prop] = val;
+  const len = rawStyle.length;
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let parenDepth = 0;
+  let current = '';
+
+  for (let i = 0; i < len; i++) {
+    const char = rawStyle[i];
+
+    if (char === "'" && !inDoubleQuote) {
+      inSingleQuote = !inSingleQuote;
+      current += char;
+    } else if (char === '"' && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote;
+      current += char;
+    } else if (char === '(' && !inSingleQuote && !inDoubleQuote) {
+      parenDepth++;
+      current += char;
+    } else if (char === ')' && !inSingleQuote && !inDoubleQuote) {
+      if (parenDepth > 0) parenDepth--;
+      current += char;
+    } else if (char === ';' && !inSingleQuote && !inDoubleQuote && parenDepth === 0) {
+      const colonIdx = current.indexOf(':');
+      if (colonIdx !== -1) {
+        const prop = current.slice(0, colonIdx).trim().toLowerCase();
+        const val = current.slice(colonIdx + 1).trim();
+        if (prop && val) {
+          result[prop] = val;
+        }
+      }
+      current = '';
+    } else {
+      current += char;
     }
   }
+
+  // Trailing declaration without final semicolon
+  if (current.trim()) {
+    const colonIdx = current.indexOf(':');
+    if (colonIdx !== -1) {
+      const prop = current.slice(0, colonIdx).trim().toLowerCase();
+      const val = current.slice(colonIdx + 1).trim();
+      if (prop && val) {
+        result[prop] = val;
+      }
+    }
+  }
+
   return result;
 }
 
@@ -283,6 +324,7 @@ export function formatFontSizeToRem(
 
   const num = parseFloat(match[1]);
   if (isNaN(num)) return trimmed;
+  if (num === 0) return isImportant ? '0 !important' : '0';
 
   const unit = (match[2] || 'px').toLowerCase();
   const effectiveScale = typeof fontScale === 'number' && fontScale > 0 ? fontScale : 1;
@@ -405,13 +447,28 @@ export function resolveNodeStyles(
   remScale: number = DEFAULT_REM_SCALE,
   baseFontSize?: number | string,
   contentBaseFontSize?: number | string,
-  fontSizeResolver?: (sourcePx: number, rawValue: string) => string | number
+  fontSizeResolver?: (sourcePx: number, rawValue: string) => string | number,
+  attrs?: Record<string, string>
 ): {
   styleStr: string;
   styleObj: Record<string, string>;
 } {
-  const tagDefaults = DEFAULT_TAG_STYLES[tagName.toLowerCase()] || {};
+  const lowerTag = tagName.toLowerCase();
+  const tagDefaults: Record<string, string> = { ...(DEFAULT_TAG_STYLES[lowerTag] || {}) };
   const userStyles = parseStyleString(userInlineStyle);
+
+  // If img has explicit width/height in HTML attributes and no inline width in userStyles,
+  // preserve the attribute width/height instead of forcing width: 100%
+  if (lowerTag === 'img') {
+    if (attrs?.width && !userStyles['width']) {
+      const rawW = attrs.width.trim();
+      tagDefaults['width'] = rawW.endsWith('px') || rawW.endsWith('%') || rawW.endsWith('rem') ? rawW : `${rawW}px`;
+    }
+    if (attrs?.height && !userStyles['height']) {
+      const rawH = attrs.height.trim();
+      tagDefaults['height'] = rawH.endsWith('px') || rawH.endsWith('%') || rawH.endsWith('rem') ? rawH : `${rawH}px`;
+    }
+  }
 
   const merged: Record<string, string> = {
     ...tagDefaults,

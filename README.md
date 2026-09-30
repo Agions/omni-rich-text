@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/omni-rich-text"><img src="https://img.shields.io/npm/v/omni-rich-text.svg?color=cb3837" alt="npm version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
-  <img src="https://img.shields.io/badge/tests-83%20passed-brightgreen.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-92%20passed-brightgreen.svg" alt="Tests">
   <img src="https://img.shields.io/badge/build-tsup%20ESM%20%2B%20CJS%20%2B%20DTS-blue.svg" alt="Build Status">
   <a href="https://github.com/Agions/omni-rich-text"><img src="https://img.shields.io/github/stars/Agions/omni-rich-text?style=social" alt="GitHub stars"></a>
 </p>
@@ -64,6 +64,13 @@
 - **AST 逻辑层安全字数截断与摘要生成 (`truncate`)**：提供 `truncate` / `truncateLength` 配置与 `truncateAST` 工具函数，递归计算真实文本字符并在截断点自动补齐省略号（默认 `'...'`）。**100% 保证深层 HTML/AST 标签合法闭合**，杜绝未闭合标签或孤儿节点破坏页面整体 DOM。
 - **图片智能比例裁剪与居中填充 (`imageCropMode` / `imageCropRatio`)**：支持为图文混排批量配置裁剪比例（如 16:9、4:3、1:1）与缩放模式（`aspectFill` / `widthFix`），配合 `object-fit: cover` 居中填充，整齐划一。
 - **圆角防溢出穿透保护 (Border-Radius Shielding)**：当检测到内容或图片包含 `border-radius` 时，自动注入 `overflow: hidden;`，彻底杜绝内部图片直角刺穿外层圆角边界。
+
+### 11. 🎨 秀米与 135 编辑器 100% 深度排版还原支持（Xiumi & 135 Editor Full Fidelity）
+- **SVG ForeignObject 穿透渲染与矢量底板解耦**：彻底解决小程序端 `<image>` 渲染含 `<foreignObject>` 的 SVG 时白屏/内容丢失的核心痛点。底层自动提取矢量底板，表层将内嵌 HTML 转为原生交互组件渲染，文字可选、链接可点、样式 1:1 精准无误。
+- **状态机样式分词器**：内联样式解析全面升级为括号与引号感知状态机，杜绝在 `background-image` 中使用内联 SVG Data URI（如 `data:image/svg+xml;utf8,...`）或 Base64 纹理背景时被分号截断损坏。
+- **不对称 Flex 布局智能保护**：严格区分作者精心设计的非对称图文卡片（如 56px 头像 + `flex: 1` 介绍）与纯图片网格，绝不暴力均分挤压头像；智能识别小图标（<= 80px）并保留原尺寸。
+- **秀米积木分栏 `font-size: 0` 消除空白裂隙**：确保用于消除 `inline-block` 间隙的 `font-size: 0` 原始呈现，杜绝两列并排（49% + 49%）换行掉列。
+- **剪枝边界加固保护**：杜绝剥离带 `text-align: center` 的外层居中容器，防止内层徽章居中失效；保留作者设计的非零 `margin-top` / `margin-bottom` 呼吸留白块。
 
 ---
 
@@ -300,7 +307,8 @@ const customTheme: ThemeConfig = {
 npm test
 ```
 
-83 项核心测试覆盖了：
+92 项核心测试覆盖了：
+- 秀米（Xiumi）、135 编辑器 100% 深度排版还原（SVG foreignObject 双层渲染、viewBox 高宽比、Data URI 分号状态机、非对称 Flex 比例保护、font-size: 0 折叠保护）
 - 微信公众号真实文章 1:1 高保真排版与多层嵌套还原
 - 尺寸 rem 1:1 无损换算与 1px 发丝边框保护
 - 原生标签 Display 语义属性与父级 Flexbox 弹性盒精准还原

@@ -13,9 +13,12 @@ export const DEFAULT_ALLOWED_TAGS = new Set([
   'br', 'hr', 'figure', 'figcaption', 'section', 'article', 'aside', 'header', 'footer',
   // Semantic tags for WeChat articles
   'nav', 'main', 'details', 'summary', 'label', 'abbr', 'cite', 'q', 'ruby', 'rt', 'rp',
-  // SVG tags (WeChat articles use SVG decorations extensively)
+  // SVG tags (WeChat articles and editors like Xiumi / 135 use SVG decorations & layout extensively)
   'svg', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'g',
   'defs', 'use', 'text', 'tspan', 'clippath', 'mask', 'lineargradient', 'radialgradient', 'stop',
+  'foreignobject', 'animate', 'animatetransform', 'animatecolor', 'set',
+  'pattern', 'image', 'marker', 'symbol',
+  'filter', 'fegaussianblur', 'feoffset', 'feblend', 'femerge', 'femergenode'
 ]);
 
 export const DEFAULT_ALLOWED_ATTRS = new Set([
@@ -25,9 +28,10 @@ export const DEFAULT_ALLOWED_ATTRS = new Set([
   'poster', 'controls', 'autoplay', 'loop', 'muted',
   'target', 'rel',
   'mode', 'lazy-load',
-  // WeChat article image attributes
+  // WeChat article and editor image/layout attributes (Xiumi, 135editor, etc.)
   'data-src', 'data-ratio', 'data-w', 'data-croporisrc', 'data-type',
-  'data-backw', 'data-backh', 'data-id', 'data-tools',
+  'data-backw', 'data-backh', 'data-id', 'data-tools', 'data-brushtype',
+  'data-role', 'data-width', 'data-height', 'data-percent', 'data-original',
   // SVG attributes
   'viewbox', 'd', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin',
   'cx', 'cy', 'r', 'rx', 'ry', 'x', 'y', 'x1', 'y1', 'x2', 'y2',
@@ -35,6 +39,12 @@ export const DEFAULT_ALLOWED_ATTRS = new Set([
   'font-size', 'text-anchor', 'dominant-baseline',
   'offset', 'stop-color', 'stop-opacity', 'gradientunits', 'gradienttransform',
   'clip-path', 'clip-rule', 'fill-rule',
+  'preserveaspectratio', 'xlink:href', 'href',
+  'attributename', 'attributetype', 'from', 'to', 'dur', 'repeatcount', 'begin', 'restart',
+  'additive', 'accumulate', 'calcmode', 'keytimes', 'keysplines', 'values',
+  'patternunits', 'patterncontentunits', 'clippathunits',
+  'markerwidth', 'markerheight', 'refx', 'refy',
+  'letter-spacing', 'word-break', 'white-space'
 ]);
 
 export const BLOCK_TAGS = new Set([
@@ -48,7 +58,8 @@ export const BLOCK_TAGS = new Set([
 export const VOID_TAGS = new Set([
   'img', 'br', 'hr', 'source', 'input', 'meta', 'link',
   // SVG void-like tags
-  'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'stop', 'use'
+  'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'stop', 'use',
+  'animate', 'animatetransform', 'set'
 ]);
 
 /** WeChat-specific tags that should be recognized but NOT rendered */
@@ -61,6 +72,9 @@ export const WX_IGNORED_TAGS = new Set([
 export const SVG_TAGS = new Set([
   'svg', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'g',
   'defs', 'use', 'text', 'tspan', 'clippath', 'mask', 'lineargradient', 'radialgradient', 'stop',
+  'foreignobject', 'animate', 'animatetransform', 'animatecolor', 'set',
+  'pattern', 'image', 'marker', 'symbol',
+  'filter', 'fegaussianblur', 'feoffset', 'feblend', 'femerge', 'femergenode'
 ]);
 
 /**

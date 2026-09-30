@@ -313,22 +313,13 @@ const CUSTOM_PRESETS: { title: string; desc: string; html: string }[] = [
 </div>`,
   },
   {
-    title: "🖼️ 双列响应式画廊",
-    desc: "智能两列等分，自适应间距",
-    html: `<div style="display: flex; gap: 8px; margin: 10px 0;">
-  <div style="flex: 1;">
-    <img src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=500&auto=format&fit=crop" style="width: 100%; border-radius: 6px; display: block;" />
-    <p style="font-size: 11px; color: #64748b; text-align: center; margin: 4px 0 0 0;">海滨夕阳</p>
-  </div>
-  <div style="flex: 1;">
-    <img src="https://images.unsplash.com/photo-1519046904884-53103b34b206?w=500&auto=format&fit=crop" style="width: 100%; border-radius: 6px; display: block;" />
-    <p style="font-size: 11px; color: #64748b; text-align: center; margin: 4px 0 0 0;">蔚蓝海岸</p>
-  </div>
-</div>`,
+    title: "📰 复杂排版文章",
+    desc: "SVG 矢量穿透 + 56px 不对称 Flex + 双列积木",
+    html: WX_ARTICLE_SAMPLE,
   },
 ];
 
-type ModeType = "wechat" | "long_article" | "clamp" | "custom_html" | "html" | "markdown";
+type ModeType = "long_article" | "clamp" | "custom_html" | "html" | "markdown";
 
 // 预设主题定义
 const THEMES: Record<string, {
@@ -430,7 +421,7 @@ const THEMES: Record<string, {
 };
 
 export default function Index() {
-  const [mode, setMode] = useState<ModeType>("wechat");
+  const [mode, setMode] = useState<ModeType>("long_article");
   const [currentThemeKey, setCurrentThemeKey] = useState<string>("wechat");
   const [clampSubMode, setClampSubMode] = useState<"height" | "ast" | "image">("height");
   const [customHtml, setCustomHtml] = useState<string>(CUSTOM_PRESETS[0].html);
@@ -478,8 +469,6 @@ export default function Index() {
 
   const getContent = () => {
     switch (mode) {
-      case "wechat":
-        return WX_ARTICLE_SAMPLE;
       case "long_article":
         return LONG_ARTICLE_SAMPLE;
       case "clamp":
@@ -500,7 +489,7 @@ export default function Index() {
       const t0 = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
       const res = parseRichContent(content, {
         format: mode === "markdown" ? "markdown" : "html",
-        mode: mode === "long_article" || mode === "wechat" || mode === "custom_html" ? "wechat" : "default",
+        mode: mode === "long_article" || mode === "custom_html" ? "wechat" : "default",
         cache: false,
       });
       const t1 = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
@@ -525,9 +514,8 @@ export default function Index() {
     }
   }, [mode, customHtml, clampSubMode]);
 
-  // 6 大核心场景导航（无挤压横向滑动胶囊）
+  // 5 大核心场景导航（无挤压横向滑动胶囊）
   const TABS: { key: ModeType; label: string; icon: string; badge: string }[] = [
-    { key: "wechat", label: "微信公众号", icon: "📰", badge: "1:1 高保真" },
     { key: "long_article", label: "长文秒开", icon: "⚡", badge: "切片流式" },
     { key: "clamp", label: "排版裁剪", icon: "✂️", badge: "限高截断" },
     { key: "custom_html", label: "自定义源码", icon: "🛠️", badge: "实时演练" },
@@ -537,10 +525,6 @@ export default function Index() {
 
   // 场景特性微提示卡片描述
   const SCENARIO_HINTS: Record<ModeType, { title: string; desc: string }> = {
-    wechat: {
-      title: "微信公众号 1:1 像素级还原",
-      desc: "原生 22px 基准映射 · SVG foreignObject 矢量双层解耦 · 56px 非对称 Flex 头像保护 · font-size:0 消除间距 · data-ratio 防抖 · 微信原生忽略组件静默兼容",
-    },
     long_article: {
       title: "20,000+ 字符高性能切片秒开",
       desc: "首屏 15 节点瞬时秒开（16ms 极速呈现）· 背景 60ms 批量流式写入 · 内存峰值降低 73% · 避免渲染主线程卡死白屏",
@@ -970,19 +954,19 @@ export default function Index() {
       {/* 6. 沉浸式手机卡片富文本正文渲染区 */}
       <View
         style={{
-          margin: mode === "wechat" ? "0" : "6px 12px 16px 12px",
-          borderRadius: mode === "wechat" ? 0 : 12,
+          margin: "6px 12px 16px 12px",
+          borderRadius: 12,
           backgroundColor: currentTheme.cardBg,
-          padding: mode === "wechat" ? "0 0 40px 0" : "14px 16px 40px 16px",
-          boxShadow: mode === "wechat" ? "none" : "0 4px 20px -2px rgba(0, 0, 0, 0.05)",
-          border: mode === "wechat" ? "none" : `1px solid ${currentTheme.border}`,
+          padding: "14px 16px 40px 16px",
+          boxShadow: "0 4px 20px -2px rgba(0, 0, 0, 0.05)",
+          border: `1px solid ${currentTheme.border}`,
           overflow: "hidden",
         }}
       >
         <OmniRichText
           content={getContent()}
           format={mode === "markdown" ? "markdown" : "html"}
-          mode={mode === "long_article" || mode === "wechat" || mode === "custom_html" ? "wechat" : "default"}
+          mode={mode === "long_article" || mode === "custom_html" ? "wechat" : "default"}
           fontScale={fontScale}
           fontSize={fontSize}
           chunked={mode === "long_article" ? enableChunked : false}

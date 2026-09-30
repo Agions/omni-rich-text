@@ -140,6 +140,20 @@ export interface ParseOptions {
    * Whether to enable LRU caching of parse results. Defaults to true.
    */
   cache?: boolean;
+  /**
+   * Whether to enable AST tree pruning (empty tag cleanup, consecutive blank paragraph folding, wrapper unnesting).
+   * Defaults to true. Pass false to disable, or pass a PruneOptions object for fine-grained control.
+   */
+  prune?: boolean | PruneOptions;
+}
+
+export interface PruneOptions {
+  /** Remove visually empty tags without styles or dimensions. Defaults to true */
+  removeEmpty?: boolean;
+  /** Collapse 2+ consecutive blank paragraphs into 1 spacer. Defaults to true */
+  foldEmptyParagraphs?: boolean;
+  /** Unwrap unstyled single-child wrapper containers (div/section). Defaults to true */
+  unwrapSingleChild?: boolean;
 }
 
 export interface ParseResult {

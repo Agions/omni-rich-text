@@ -389,13 +389,16 @@ describe('WeChat Official Account Article Parsing & Fidelity', () => {
     expect(col2?.styleObj['width']).toBe('50%');
 
     // Deeply nested images must have width: 100% and display: block
-    const img1 = col1?.children?.[0]?.children?.[0]?.children?.[0]?.children?.[0];
+    // With tree-pruner enabled by default, unstyled redundant wrapper sections are unwrapped
+    const img1 = col1?.children?.[0]?.children?.[0]?.children?.[0]?.children?.[0]
+      || col1?.children?.[0]?.children?.[0];
     expect(img1?.name).toBe('img');
     expect(img1?.styleObj['width']).toBe('100%');
     expect(img1?.styleObj['display']).toBe('block');
     expect(img1?.extra?.isMultiImage).toBe(true);
 
-    const img3 = col2?.children?.[0]?.children?.[0]?.children?.[0]?.children?.[0];
+    const img3 = col2?.children?.[0]?.children?.[0]?.children?.[0]?.children?.[0]
+      || col2?.children?.[0]?.children?.[0];
     expect(img3?.name).toBe('img');
     expect(img3?.styleObj['width']).toBe('100%');
     expect(img3?.styleObj['display']).toBe('block');

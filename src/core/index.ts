@@ -5,6 +5,7 @@
 import { ASTNode, ParseOptions, ParseResult } from './types/ast';
 import { parseHtml, detectArticleThemeBg } from './lexer/html-parser';
 import { optimizeAST } from './optimizer/tree-flattener';
+import { pruneAST } from './optimizer/tree-pruner';
 import { extractGallery } from './gallery/image-extractor';
 import { markdownToHtml } from './plugins/markdown';
 import { highlightCode } from './plugins/prism';
@@ -18,6 +19,7 @@ export * from './sanitizer/whitelist';
 export * from './styler/css-inliner';
 export * from './styler/wx-style-extractor';
 export * from './optimizer/tree-flattener';
+export * from './optimizer/tree-pruner';
 export * from './optimizer/chunker';
 export * from './gallery/image-extractor';
 export * from './bridge/platform';
@@ -77,7 +79,13 @@ export function parseRichContent(content: string, options: ParseOptions = {}): P
   // 4. Tree flattening & depth bounded optimization
   // WeChat articles often use deep section nesting for card borders, default depth is 12 for wechat
   const defaultDepth = options.mode === 'wechat' ? 12 : 8;
-  const optimizedNodes = optimizeAST(nodes, options.maxDepth || defaultDepth);
+  let optimizedNodes = optimizeAST(nodes, options.maxDepth || defaultDepth);
+
+  // 4.5. AST tree pruning & spacer folding
+  if (options.prune !== false) {
+    const pruneOpts = typeof options.prune === 'object' ? options.prune : {};
+    optimizedNodes = pruneAST(optimizedNodes, pruneOpts);
+  }
 
   // 5. Extract images and build ordered gallery list
   const { galleryList, rawImages } = extractGallery(optimizedNodes);

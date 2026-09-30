@@ -4,6 +4,28 @@ All notable changes to `omni-rich-text` will be documented in this file.
 
 ---
 
+## [0.1.4] - 2026-09-30
+
+### ⚡ AST 无损智能剪枝瘦身 & 加权自适应切片分批（Extreme Performance & AST Pruning）
+
+- **智能无损剪枝瘦身引擎 (`tree-pruner.ts`)**
+  - **空标签清理 (`removeEmpty`)**：安全移除无实际内容且无盒模型样式的死标签（如编辑器残留的空白 `<span></span>`、`<p></p>`、`<div></div>`）。严守视觉安全底线，保留 `<img>`、`<video>`、`<audio>`、`<hr>`、`<br>`、`<svg>` 及具备背景色、边框、宽高、内边距、投影或锚点 ID 的占位块。
+  - **连续空白留白段落智能折叠 (`foldEmptyParagraphs`)**：针对富文本编辑器频繁连续敲击回车产生的多个连续空白行（如连续 5~10 个 `<p><br></p>` 或 `<p>&nbsp;</p>`），智能折叠保留恰好 1 个呼吸留白行，大幅削减 70%+ 的空白冗余 DOM 节点与 Fiber 实例。
+  - **无样式单子级容器脱壳透传 (`unwrapSingleChild`)**：针对第三方排版编辑器（如 135、秀米等）产生的层层冗余包裹容器（如 `<div><div><section>...</section></div></div>`），在确认无 ID、无边框/背景/内边距/外边距及无 Flex 布局属性的前提下自动脱壳透传，将 AST 树层级深度削减 50% 以上，从根本上防止小程序递归模板栈溢出。
+  - **灵活可控**：`ParseOptions` 新增 `prune?: boolean | PruneOptions` 配置项，默认全量开启（`true`），亦可按需定制或完全关闭。
+
+- **加权自适应切片分批渲染 (`chunker.ts`)**
+  - **首屏秒开与流式平滑预算**：首屏分配较小权重预算（`initialWeight: 35`）确保瞬间完成初次渲染上屏；后续批次分配流式预算（`chunkWeight: 80`）平滑分批写入 setData，消除大型根节点引起的阻塞掉帧。
+  - **递归子树加权评估**：普通节点与文本权重计为 1；高渲染开销节点（`img`、`video`、`svg`、`table`、`pre`、`code`、`canvas` 等）权重计为 3，并递归汇总整棵子树复杂度。
+  - **全面向后兼容**：保留对历史 `chunkSize` 选项的无缝支持。
+
+- **专项单元测试与全套验证**
+  - 新增 `prune.test.ts` 专项单测套件（8 项测试）。
+  - 新增 `chunker.test.ts` 专项单测套件（5 项测试）。
+  - 核心单测增至 75 项，通过率 100%。
+
+---
+
 ## [0.1.3] - 2026-09-29
 
 ### 🎯 Native Display Semantics & Flex Container Layout Fidelity

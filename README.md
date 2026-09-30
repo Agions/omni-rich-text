@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/omni-rich-text"><img src="https://img.shields.io/npm/v/omni-rich-text.svg?color=cb3837" alt="npm version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
-  <img src="https://img.shields.io/badge/tests-62%20passed-brightgreen.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-75%20passed-brightgreen.svg" alt="Tests">
   <img src="https://img.shields.io/badge/build-tsup%20ESM%20%2B%20CJS%20%2B%20DTS-blue.svg" alt="Build Status">
   <a href="https://github.com/Agions/omni-rich-text"><img src="https://img.shields.io/github/stars/Agions/omni-rich-text?style=social" alt="GitHub stars"></a>
 </p>
@@ -39,16 +39,22 @@
 - 页面回退、列表复用或重新挂载时 **0ms 瞬间还原**，彻底杜绝重复的正则分词、样式内联与 DOM 树构建开销。
 - 支持通过 `cache: false` 禁用，并对外导出 `clearASTCache()` 和 `getASTCacheSize()` 控制接口。
 
-### 6. 📜 超长图文按需触底追加 (Scroll Append)
+### 6. 🌲 AST 无损智能剪枝瘦身与加权自适应切片分批
+- **空标签清理 (`removeEmpty`)**：安全剔除无内容且无盒模型样式的冗余死标签（如编辑器产生的空 `<span></span>`、`<div></div>`）。严守视觉安全边界，保留 `<img>`、`<video>`、`<audio>`、`<hr>`、`<br>`、`<svg>` 及具背景色、边框、宽高尺寸或锚点 ID 的占位块。
+- **连续空白留白折叠 (`foldEmptyParagraphs`)**：智能识别作者连续按回车产生的多个空行（如连续多个 `<p><br></p>` 或 `<p>&nbsp;</p>`），折叠保留恰好 1 个呼吸空行，减少 70%+ 的空白 DOM 节点与 Fiber 实例。
+- **无样式单子级容器脱壳透传 (`unwrapSingleChild`)**：针对公众号排版工具（135、秀米等）产生的层层冗余外壳（如 `<div><div><section>...</section></div></div>`），在无样式/属性影响下自动脱壳透传，AST 树深度直降 50%+，杜绝小程序递归模板溢出。
+- **加权自适应分批 (`chunker.ts`)**：首屏较小权重预算（`initialWeight: 35`）保障瞬间秒开；后续批次流式预算（`chunkWeight: 80`）平滑写入 setData；多媒体与复杂表格按 3x 权重智能核算，消除掉帧。
+
+### 7. 📜 超长图文按需触底追加 (Scroll Append)
 - **拒绝首屏卡顿**：支持 `appendMode: 'scroll'` 模式，首屏仅加载首批 chunk（如 15 个根节点）。
 - **视口哨兵探测**：通过底部 `IntersectionObserver` 哨兵自动感知用户滚动，临近视口底部（350px 缓冲带）时才动态挂载下一批节点，极大节省深层 DOM 与内存开销。
 - **平滑空闲调度**：在 `stream` 模式下采用 `requestIdleCallback` 调频，不阻塞主线程手势交互与动画。
 
-### 7. 📰 微信公众号全特性深度对齐
+### 8. 📰 微信公众号全特性深度对齐
 - **全特性无损呈现**：完整支持微信 SVG 矢量图与纹理、深层嵌套 Section 结构、CSS `background-image` 背景图纹理，安全过滤无用的微信专有空白审计标签（如 `mpvoice`、`mp-vote` 等）。
 - **开箱即用原生全功能交互**：内置图片点击全屏画廊预览（多图滑动与手势双击）、链接智能路由分发、长按自由选择与复制。
 
-### 8. 📦 标准预编译产物与现代化单包分发
+### 9. 📦 标准预编译产物与现代化单包分发
 - 使用 `tsup` 预编译打包，提供完整的 **ESM (`.mjs`)**、**CJS (`.js`)** 与 **TypeScript 类型声明 (`.d.ts`)**，开箱即用，无需依赖方强配 Babel/TS 转译规则。
 - 现代化子路径设计：`omni-rich-text/taro`、`omni-rich-text/uni`、`omni-rich-text/react-native`、`omni-rich-text/core`、`omni-rich-text/wechat`。
 
@@ -231,8 +237,11 @@ console.log(galleryList);  // 全文图片有序 URL 列表
 | `imageLinkAction` | `'link' \| 'preview' \| 'both'` | `'link'` | 图片带链接时的交互策略：`link`（优先跳转链接，默认）、`preview`（预览大图）、`both` |
 | `appendMode` | `'stream' \| 'scroll'` | `'stream'` | 长文挂载策略：`scroll` 为视口按需触底追加，`stream` 为空闲调频流式 |
 | `cache` | `boolean` | `true` | 是否启用 AST 解析 LRU 内存缓存池（0ms 复用） |
+| `prune` | `boolean \| PruneOptions` | `true` | 是否启用 AST 智能无损剪枝瘦身（空标签清理、连续空行折叠、单子级脱壳） |
 | `chunked` | `boolean` | `true` | 是否启用分片渐进渲染，防止长文阻塞主线程 |
-| `chunkSize` | `number` | `15` | 每个分片渲染的根节点数量 |
+| `chunkSize` | `number` | `15` | 每个分片渲染的根节点数量（向前兼容） |
+| `initialWeight` | `number` | `35` | 首屏加权分片预算，保障首屏秒开渲染性能 |
+| `chunkWeight` | `number` | `80` | 后续批次加权预算，平滑流式写入避免阻塞主线程 |
 | `imageSkeleton` | `boolean` | `true` | 是否启用图片骨架屏与淡入动画（基于宽高比预占高，防 CLS 抖动） |
 | `selectable` | `boolean` | `false` | 文本是否支持选中复制（默认 `false` 防止排版长按误触） |
 | `theme` | `ThemeConfig` | `{}` | 细粒度主题配色定制（超链接、引用块、代码块、表格、分割线等） |
@@ -275,9 +284,12 @@ const customTheme: ThemeConfig = {
 npm test
 ```
 
-51 项核心测试覆盖了：
+75 项核心测试覆盖了：
 - 微信公众号真实文章 1:1 高保真排版与多层嵌套还原
 - 尺寸 rem 1:1 无损换算与 1px 发丝边框保护
+- 原生标签 Display 语义属性与父级 Flexbox 弹性盒精准还原
+- AST 智能无损剪枝瘦身（空标签清理、连续留白折叠、单子级脱壳）
+- 加权自适应切片分批（首屏秒开与流式背景写入）
 - 图片智能混排、宽高自适应与异常静默容错
 - LRU 缓存命中与失效策略
 

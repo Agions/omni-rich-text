@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/omni-rich-text"><img src="https://img.shields.io/npm/v/omni-rich-text.svg?color=cb3837" alt="npm version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
-  <img src="https://img.shields.io/badge/tests-92%20passed-brightgreen.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-100%20passed-brightgreen.svg" alt="Tests">
   <img src="https://img.shields.io/badge/build-tsup%20ESM%20%2B%20CJS%20%2B%20DTS-blue.svg" alt="Build Status">
   <a href="https://github.com/Agions/omni-rich-text"><img src="https://img.shields.io/github/stars/Agions/omni-rich-text?style=social" alt="GitHub stars"></a>
 </p>
@@ -71,6 +71,11 @@
 - **不对称 Flex 布局智能保护**：严格区分作者精心设计的非对称图文卡片（如 56px 头像 + `flex: 1` 介绍）与纯图片网格，绝不暴力均分挤压头像；智能识别小图标（<= 80px）并保留原尺寸。
 - **秀米积木分栏 `font-size: 0` 消除空白裂隙**：确保用于消除 `inline-block` 间隙的 `font-size: 0` 原始呈现，杜绝两列并排（49% + 49%）换行掉列。
 - **剪枝边界加固保护**：杜绝剥离带 `text-align: center` 的外层居中容器，防止内层徽章居中失效；保留作者设计的非零 `margin-top` / `margin-bottom` 呼吸留白块。
+
+### 12. 🎠 公众号 SVG 轮播图智能映射与 SVG 格式代码双模展示
+- **SVG 轮播图智能识别与原生 `<Swiper>` 映射**：自动识别公众号黑科技多帧 SVG 轮播结构（连续 `<image>`、`<svg>` 横滑或 SMIL 平移），在小程序端自动映射为原生 `<Swiper>` 组件，支持沉浸式手势滑动翻页、高宽比自适应与现代半透明指示圆点（Dots）。
+- **手势画廊联动与链接跳转**：轮播图各帧自动纳入文章图片画廊（`galleryList`），点击任意帧即可唤起全屏手势放大画廊，并完整支持各帧专属跳转外链拦截。
+- **SVG 格式代码块语法高亮与双模预览**：保护 `<pre><code>` 内的 SVG 源码不被错误当成真实矢量图解析，基于 Prism 引擎提供专业的 XML / SVG 语法着色（标签、属性名、属性值、注释）；代码块头部提供语言标、一键「📋 复制」及「👁️ 预览 / 💻 源码」实时双模切换。
 
 ---
 
@@ -307,7 +312,9 @@ const customTheme: ThemeConfig = {
 npm test
 ```
 
-92 项核心测试覆盖了：
+100 项核心测试覆盖了：
+- 公众号黑科技 SVG 轮播图智能识别、帧图片提取、原生 Swiper 映射与画廊联动
+- SVG 格式代码块排版保护、XML 语法着色、未转义/转义字符解析与双模实时切换
 - 秀米（Xiumi）、135 编辑器 100% 深度排版还原（SVG foreignObject 双层渲染、viewBox 高宽比、Data URI 分号状态机、非对称 Flex 比例保护、font-size: 0 折叠保护）
 - 微信公众号真实文章 1:1 高保真排版与多层嵌套还原
 - 尺寸 rem 1:1 无损换算与 1px 发丝边框保护

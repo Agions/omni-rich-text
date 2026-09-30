@@ -39,6 +39,22 @@ export function extractGallery(nodes: ASTNode[]): GalleryExtractionResult {
       }
     }
 
+    if (node.extra?.isSvgCarousel && node.extra?.carouselSlides) {
+      for (const slide of node.extra.carouselSlides) {
+        if (slide.src) {
+          const index = galleryList.length;
+          galleryList.push(slide.src);
+          rawImages.push({
+            index,
+            src: slide.src,
+            alt: slide.title,
+            width: slide.width,
+            height: slide.height
+          });
+        }
+      }
+    }
+
     if (node.children && node.children.length > 0) {
       for (const child of node.children) {
         traverse(child);

@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { View, Text, Image, Video, Audio, Button, ScrollView } from '@tarojs/components';
+import Taro from '@tarojs/taro';
+import { View, Text, Image, Video, Audio, Button, ScrollView, Swiper, SwiperItem } from '@tarojs/components';
 import {
   ASTNode,
   MediaEventPayload,
@@ -252,6 +253,145 @@ const OmniImage: React.FC<{
   );
 };
 
+function extractRawText(node: ASTNode): string {
+  if (node.type === 'text') return node.text || '';
+  if (!node.children || node.children.length === 0) return '';
+  return node.children.map(extractRawText).join('');
+}
+
+const UrtPreCode: React.FC<{
+  node: ASTNode;
+  theme?: ThemeConfig;
+  renderChild: (child: ASTNode, idx?: number, parentTag?: string) => React.ReactNode;
+}> = ({ node, theme, renderChild }) => {
+  const [showPreview, setShowPreview] = React.useState(false);
+  const isSvg = !!node.extra?.isSvgCodeBlock;
+  const rawSvgCode = node.extra?.rawSvgCode;
+  const lang = (node.extra?.lang || (isSvg ? 'xml' : 'code')).toUpperCase();
+
+  const handleCopy = (e: any) => {
+    e.stopPropagation();
+    const textToCopy = rawSvgCode || extractRawText(node);
+    if (textToCopy) {
+      Taro.setClipboardData({
+        data: textToCopy,
+        success: () => {
+          Taro.showToast({ title: '代码已复制', icon: 'none' });
+        }
+      });
+    }
+  };
+
+  const svgDataUri = rawSvgCode
+    ? `data:image/svg+xml;utf8,${encodeURIComponent(rawSvgCode)}`
+    : undefined;
+
+  return (
+    <View
+      className="omni-pre-container"
+      style={toTaroStyle({
+        margin: '12px 0',
+        borderRadius: 8,
+        overflow: 'hidden',
+        border: '1px solid rgba(0, 0, 0, 0.08)',
+        backgroundColor: theme?.codeBgColor ?? '#282c34',
+        ...node.styleObj
+      })}
+    >
+      {/* Code Header Bar with Language, Copy, and Preview Toggle */}
+      <View
+        className="omni-pre-header"
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '6px 12px',
+          backgroundColor: 'rgba(0, 0, 0, 0.25)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.06)'
+        }}
+      >
+        <Text style={{ fontSize: '11px', color: '#abb2bf', fontWeight: 'bold' }}>
+          {isSvg ? '🎨 XML / SVG' : lang}
+        </Text>
+        <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          {isSvg && svgDataUri && (
+            <View
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowPreview(!showPreview);
+              }}
+              style={{
+                fontSize: '11px',
+                padding: '2px 8px',
+                borderRadius: 4,
+                backgroundColor: showPreview ? '#07c160' : 'rgba(255, 255, 255, 0.15)',
+                color: '#ffffff',
+                cursor: 'pointer'
+              }}
+            >
+              <Text>{showPreview ? '💻 源码' : '👁️ 预览'}</Text>
+            </View>
+          )}
+          <View
+            onClick={handleCopy}
+            style={{
+              fontSize: '11px',
+              padding: '2px 8px',
+              borderRadius: 4,
+              backgroundColor: 'rgba(255, 255, 255, 0.15)',
+              color: '#ffffff',
+              cursor: 'pointer'
+            }}
+          >
+            <Text>📋 复制</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Code Body or SVG Preview */}
+      {showPreview && svgDataUri ? (
+        <View
+          style={{
+            padding: 16,
+            backgroundColor: '#ffffff',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}
+        >
+          <Image
+            src={svgDataUri}
+            mode="widthFix"
+            style={{ maxWidth: '100%', display: 'block' }}
+          />
+        </View>
+      ) : (
+        <ScrollView
+          scrollX
+          enableFlex
+          className="omni-pre-scroll"
+          style={{ width: '100%' }}
+        >
+          <View
+            className="omni-pre"
+            style={toTaroStyle({
+              color: theme?.codeTextColor ?? '#abb2bf',
+              minWidth: '100%',
+              padding: '12px 14px',
+              boxSizing: 'border-box',
+              fontFamily: 'Consolas, Monaco, monospace',
+              fontSize: '13px'
+            })}
+          >
+            {node.children?.map((child, idx) => renderChild(child, idx, 'pre'))}
+          </View>
+        </ScrollView>
+      )}
+    </View>
+  );
+};
+
 export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
   node,
   onLinkClick,
@@ -351,6 +491,78 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
       >
         {node.text}
       </Text>
+    );
+  }
+
+  // 3.0 SVG Carousel / Slider (Native Swiper mapping)
+  if (node.extra?.isSvgCarousel && node.extra.carouselSlides && node.extra.carouselSlides.length > 0) {
+    const slides = node.extra.carouselSlides;
+    const vbRatio = node.extra.aspectRatio || extractSvgViewBoxRatio(node) || 16 / 9;
+
+    return (
+      <View
+        className="omni-svg-carousel-container"
+        style={toTaroStyle({
+          width: '100%',
+          margin: '12px 0',
+          borderRadius: 8,
+          overflow: 'hidden',
+          position: 'relative',
+          ...node.styleObj
+        })}
+      >
+        <Swiper
+          className="omni-svg-swiper"
+          indicatorDots={slides.length > 1}
+          indicatorColor="rgba(255, 255, 255, 0.45)"
+          indicatorActiveColor="#ffffff"
+          autoplay={false}
+          circular={slides.length > 1}
+          style={{
+            width: '100%',
+            height: '240px',
+            aspectRatio: String(vbRatio)
+          }}
+        >
+          {slides.map((slide, sIdx) => (
+            <SwiperItem key={sIdx} style={{ width: '100%', height: '100%' }}>
+              <View
+                style={{ width: '100%', height: '100%', position: 'relative' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onNodeEvent?.('click', node, e);
+                  if (slide.href) {
+                    onLinkClick(slide.href, node);
+                  }
+                  onImageClick(slide.src, node);
+                }}
+              >
+                <Image
+                  src={slide.src}
+                  mode="aspectFill"
+                  style={{ width: '100%', height: '100%', display: 'block' }}
+                />
+                {slide.title && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      padding: '6px 10px',
+                      background: 'linear-gradient(transparent, rgba(0,0,0,0.65))',
+                      color: '#ffffff',
+                      fontSize: '12px'
+                    }}
+                  >
+                    <Text>{slide.title}</Text>
+                  </View>
+                )}
+              </View>
+            </SwiperItem>
+          ))}
+        </Swiper>
+      </View>
     );
   }
 
@@ -607,29 +819,14 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
     );
   }
 
-  // 11. Preformatted Code <pre>
+  // 11. Preformatted Code <pre> (with syntax highlighting, copy, and SVG preview toggle)
   if (node.name === 'pre') {
     return (
-      <ScrollView
-        scrollX
-        className="omni-pre-scroll"
-        style={toTaroStyle({
-          backgroundColor: theme?.codeBgColor,
-          ...node.styleObj
-        })}
-      >
-        <View
-          className="omni-pre"
-          style={toTaroStyle({
-            color: theme?.codeTextColor,
-            minWidth: '100%',
-            boxSizing: 'border-box',
-            ...node.styleObj
-          })}
-        >
-          {node.children?.map((child) => renderChild(child, undefined, 'pre'))}
-        </View>
-      </ScrollView>
+      <UrtPreCode
+        node={node}
+        theme={theme}
+        renderChild={renderChild}
+      />
     );
   }
 

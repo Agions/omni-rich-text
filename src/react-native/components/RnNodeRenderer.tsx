@@ -259,6 +259,45 @@ export const RnNodeRenderer: React.FC<RnNodeRendererProps> = React.memo(({
     );
   }
 
+  // ── 2.5. SVG Carousel / Slider (Paging ScrollView) ──────────────────────
+  if (node.extra?.isSvgCarousel && node.extra.carouselSlides && node.extra.carouselSlides.length > 0) {
+    const slides = node.extra.carouselSlides;
+    const vbRatio = node.extra.aspectRatio || extractSvgViewBoxRatio(node) || 16 / 9;
+
+    return (
+      <View style={[{ width: '100%', marginVertical: 10, borderRadius: 8, overflow: 'hidden' }, cssToRn(node.styleObj) as any]}>
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          style={{ width: '100%', aspectRatio: vbRatio }}
+        >
+          {slides.map((slide, sIdx) => (
+            <Pressable
+              key={sIdx}
+              onPress={() => {
+                if (slide.href) onLinkTap(slide.href, node);
+                onImageTap(slide.src, node);
+              }}
+              style={{ width: 360, height: '100%', position: 'relative' }}
+            >
+              <Image
+                source={{ uri: slide.src }}
+                style={{ width: '100%', height: '100%' }}
+                resizeMode="cover"
+              />
+              {slide.title ? (
+                <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 6, backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                  <Text style={{ color: '#ffffff', fontSize: 12 }}>{slide.title}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
+    );
+  }
+
   // ── 3. SVG → layout container or data URI ──────────────────────────────
   if (node.name === 'svg') {
     if (hasForeignObject(node)) {

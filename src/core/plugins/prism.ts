@@ -24,73 +24,149 @@ const KEYWORDS = new Set([
 ]);
 
 /**
+ * Highlights an XML or SVG code line into colored AST child nodes
+ */
+function highlightXmlLine(line: string): ASTNode[] {
+  const lineChildren: ASTNode[] = [];
+  // Token matches: 1: XML comment, 2: Tag open/close name, 3: Attr name, 4: Attr value string, 5: other
+  const xmlTokenRegex = /(<!--[\s\S]*?-->)|(<\/?[a-zA-Z0-9:-]+|\/?>)|([a-zA-Z0-9_:-]+(?==))|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|([^<>"'=]+|[=])/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = xmlTokenRegex.exec(line)) !== null) {
+    const [token, comment, tag, attrName, str] = match;
+
+    if (comment) {
+      lineChildren.push({
+        id: generateNodeId(),
+        type: 'element',
+        name: 'span',
+        attrs: {},
+        styleStr: CODE_THEME.comment,
+        styleObj: {},
+        children: [{ id: generateNodeId(), type: 'text', attrs: {}, styleStr: '', styleObj: {}, text: token }]
+      });
+    } else if (tag) {
+      lineChildren.push({
+        id: generateNodeId(),
+        type: 'element',
+        name: 'span',
+        attrs: {},
+        styleStr: 'color: #e06c75; font-weight: bold;',
+        styleObj: {},
+        children: [{ id: generateNodeId(), type: 'text', attrs: {}, styleStr: '', styleObj: {}, text: token }]
+      });
+    } else if (attrName) {
+      lineChildren.push({
+        id: generateNodeId(),
+        type: 'element',
+        name: 'span',
+        attrs: {},
+        styleStr: 'color: #d19a66;',
+        styleObj: {},
+        children: [{ id: generateNodeId(), type: 'text', attrs: {}, styleStr: '', styleObj: {}, text: token }]
+      });
+    } else if (str) {
+      lineChildren.push({
+        id: generateNodeId(),
+        type: 'element',
+        name: 'span',
+        attrs: {},
+        styleStr: CODE_THEME.string,
+        styleObj: {},
+        children: [{ id: generateNodeId(), type: 'text', attrs: {}, styleStr: '', styleObj: {}, text: token }]
+      });
+    } else {
+      lineChildren.push({
+        id: generateNodeId(),
+        type: 'text',
+        attrs: {},
+        styleStr: '',
+        styleObj: {},
+        text: token
+      });
+    }
+  }
+
+  return lineChildren;
+}
+
+/**
  * Highlights a raw code string into colored AST child nodes
  */
 export function highlightCode(code: string, lang = ''): ASTNode[] {
+  const isXmlOrSvg =
+    lang === 'xml' ||
+    lang === 'svg' ||
+    lang === 'html' ||
+    (!lang && code.trim().startsWith('<') && code.includes('>'));
+
   const lines = code.split('\n');
   const nodes: ASTNode[] = [];
 
   for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
     const line = lines[lineIdx];
-    const lineChildren: ASTNode[] = [];
+    let lineChildren: ASTNode[] = [];
 
-    // Simple tokenizer for keywords, strings, comments, numbers
-    // Token matches: 1: comment, 2: string, 3: word/identifier, 4: number, 5: others
-    const tokenRegex = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)|([a-zA-Z_$][a-zA-Z0-9_$]*)|(\b\d+(?:\.\d+)?\b)|([^\s\w]+|\s+)/g;
-    let match: RegExpExecArray | null;
+    if (isXmlOrSvg) {
+      lineChildren = highlightXmlLine(line);
+    } else {
+      // Simple tokenizer for keywords, strings, comments, numbers
+      const tokenRegex = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)|([a-zA-Z_$][a-zA-Z0-9_$]*)|(\b\d+(?:\.\d+)?\b)|([^\s\w]+|\s+)/g;
+      let match: RegExpExecArray | null;
 
-    while ((match = tokenRegex.exec(line)) !== null) {
-      const [token, comment, str, word, num] = match;
+      while ((match = tokenRegex.exec(line)) !== null) {
+        const [token, comment, str, word, num] = match;
 
-      if (comment) {
-        lineChildren.push({
-          id: generateNodeId(),
-          type: 'element',
-          name: 'span',
-          attrs: {},
-          styleStr: CODE_THEME.comment,
-          styleObj: {},
-          children: [{ id: generateNodeId(), type: 'text', attrs: {}, styleStr: '', styleObj: {}, text: token }]
-        });
-      } else if (str) {
-        lineChildren.push({
-          id: generateNodeId(),
-          type: 'element',
-          name: 'span',
-          attrs: {},
-          styleStr: CODE_THEME.string,
-          styleObj: {},
-          children: [{ id: generateNodeId(), type: 'text', attrs: {}, styleStr: '', styleObj: {}, text: token }]
-        });
-      } else if (word && KEYWORDS.has(word)) {
-        lineChildren.push({
-          id: generateNodeId(),
-          type: 'element',
-          name: 'span',
-          attrs: {},
-          styleStr: CODE_THEME.keyword,
-          styleObj: {},
-          children: [{ id: generateNodeId(), type: 'text', attrs: {}, styleStr: '', styleObj: {}, text: token }]
-        });
-      } else if (num) {
-        lineChildren.push({
-          id: generateNodeId(),
-          type: 'element',
-          name: 'span',
-          attrs: {},
-          styleStr: CODE_THEME.number,
-          styleObj: {},
-          children: [{ id: generateNodeId(), type: 'text', attrs: {}, styleStr: '', styleObj: {}, text: token }]
-        });
-      } else {
-        lineChildren.push({
-          id: generateNodeId(),
-          type: 'text',
-          attrs: {},
-          styleStr: '',
-          styleObj: {},
-          text: token
-        });
+        if (comment) {
+          lineChildren.push({
+            id: generateNodeId(),
+            type: 'element',
+            name: 'span',
+            attrs: {},
+            styleStr: CODE_THEME.comment,
+            styleObj: {},
+            children: [{ id: generateNodeId(), type: 'text', attrs: {}, styleStr: '', styleObj: {}, text: token }]
+          });
+        } else if (str) {
+          lineChildren.push({
+            id: generateNodeId(),
+            type: 'element',
+            name: 'span',
+            attrs: {},
+            styleStr: CODE_THEME.string,
+            styleObj: {},
+            children: [{ id: generateNodeId(), type: 'text', attrs: {}, styleStr: '', styleObj: {}, text: token }]
+          });
+        } else if (word && KEYWORDS.has(word)) {
+          lineChildren.push({
+            id: generateNodeId(),
+            type: 'element',
+            name: 'span',
+            attrs: {},
+            styleStr: CODE_THEME.keyword,
+            styleObj: {},
+            children: [{ id: generateNodeId(), type: 'text', attrs: {}, styleStr: '', styleObj: {}, text: token }]
+          });
+        } else if (num) {
+          lineChildren.push({
+            id: generateNodeId(),
+            type: 'element',
+            name: 'span',
+            attrs: {},
+            styleStr: CODE_THEME.number,
+            styleObj: {},
+            children: [{ id: generateNodeId(), type: 'text', attrs: {}, styleStr: '', styleObj: {}, text: token }]
+          });
+        } else {
+          lineChildren.push({
+            id: generateNodeId(),
+            type: 'text',
+            attrs: {},
+            styleStr: '',
+            styleObj: {},
+            text: token
+          });
+        }
       }
     }
 

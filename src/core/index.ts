@@ -10,6 +10,7 @@ import { truncateAST } from './optimizer/truncator';
 import { extractGallery } from './gallery/image-extractor';
 import { markdownToHtml } from './plugins/markdown';
 import { highlightCode } from './plugins/prism';
+import { detectSvgCarousel, isSvgSourceCode, serializeSvgToXml } from './utils/svg';
 
 export * from './types/ast';
 export * from './types/theme';
@@ -101,6 +102,9 @@ export function parseRichContent(content: string, options: ParseOptions = {}): P
     };
   }
 
+  // 4.7. SVG Carousel detection and frame normalization
+  optimizedNodes = enhanceSvgCarousels(optimizedNodes);
+
   // 5. Extract images and build ordered gallery list
   const { galleryList, rawImages } = extractGallery(optimizedNodes);
 
@@ -123,6 +127,24 @@ export function parseRichContent(content: string, options: ParseOptions = {}): P
 }
 
 /**
+ * Traverses AST to find SVG carousels and attach normalized slides and aspect ratio
+ */
+function enhanceSvgCarousels(nodes: ASTNode[]): ASTNode[] {
+  for (const node of nodes) {
+    const carouselInfo = detectSvgCarousel(node);
+    if (carouselInfo) {
+      if (!node.extra) node.extra = {};
+      node.extra.isSvgCarousel = true;
+      node.extra.carouselSlides = carouselInfo.slides;
+      node.extra.aspectRatio = carouselInfo.aspectRatio;
+    } else if (node.children && node.children.length > 0) {
+      enhanceSvgCarousels(node.children);
+    }
+  }
+  return nodes;
+}
+
+/**
  * Parses rich content and safely truncates it into a normalized excerpt AST.
  */
 export function truncateRichContent(
@@ -141,15 +163,33 @@ function enhanceCodeBlocks(nodes: ASTNode[]): ASTNode[] {
     if (node.name === 'pre' && node.children && node.children.length > 0) {
       const codeNode = node.children.find((c) => c.name === 'code');
       if (codeNode && codeNode.children) {
-        // Extract raw code text
-        const rawCode = extractTextFromNode(codeNode);
+        // Extract raw code text (serializing XML/SVG element children if any)
+        const rawCode = extractTextFromCodeNode(codeNode);
         const langMatch = (codeNode.attrs.class || '').match(/language-(\w+)/);
-        const lang = langMatch ? langMatch[1] : '';
+        let lang = langMatch ? langMatch[1] : '';
+
+        const isSvgCode = isSvgSourceCode(rawCode);
+        if (isSvgCode && !lang) {
+          lang = 'xml';
+        }
 
         // Highlight into styled AST spans
         const highlightedNodes = highlightCode(rawCode, lang);
         codeNode.children = highlightedNodes;
-        codeNode.extra = { ...codeNode.extra, isCodeBlock: true, lang };
+        codeNode.extra = {
+          ...codeNode.extra,
+          isCodeBlock: true,
+          lang,
+          isSvgCodeBlock: isSvgCode,
+          rawSvgCode: isSvgCode ? rawCode : undefined
+        };
+        node.extra = {
+          ...node.extra,
+          isCodeBlock: true,
+          lang,
+          isSvgCodeBlock: isSvgCode,
+          rawSvgCode: isSvgCode ? rawCode : undefined
+        };
       }
     } else if (node.children && node.children.length > 0) {
       enhanceCodeBlocks(node.children);
@@ -158,12 +198,15 @@ function enhanceCodeBlocks(nodes: ASTNode[]): ASTNode[] {
   return nodes;
 }
 
-function extractTextFromNode(node: ASTNode): string {
+function extractTextFromCodeNode(node: ASTNode): string {
   if (node.type === 'text') {
     return node.text || '';
+  }
+  if (node.name === 'svg') {
+    return serializeSvgToXml(node);
   }
   if (!node.children || node.children.length === 0) {
     return '';
   }
-  return node.children.map(extractTextFromNode).join('');
+  return node.children.map(extractTextFromCodeNode).join('');
 }

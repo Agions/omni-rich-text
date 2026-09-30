@@ -52,6 +52,20 @@ export interface ASTNode {
     isInline?: boolean;
     /** Native default display value if not explicitly specified: 'inline', 'inline-block', or 'block' */
     defaultDisplay?: string;
+    /** Whether this node is identified as an interactive SVG-based carousel/slider */
+    isSvgCarousel?: boolean;
+    /** Normalized slide frames extracted from SVG carousel */
+    carouselSlides?: Array<{
+      src: string;
+      href?: string;
+      title?: string;
+      width?: number;
+      height?: number;
+    }>;
+    /** Whether this code block represents SVG XML source code */
+    isSvgCodeBlock?: boolean;
+    /** Raw SVG code string for preview rendering */
+    rawSvgCode?: string;
   };
 }
 

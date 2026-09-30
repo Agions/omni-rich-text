@@ -143,3 +143,142 @@ export function serializeSvgToXml(node: ASTNode): string {
   const childrenXml = node.children.map(serializeSvgToXml).join('');
   return `<${tag}${attrString}>${childrenXml}</${tag}>`;
 }
+
+export interface CarouselSlide {
+  src: string;
+  href?: string;
+  title?: string;
+  width?: number;
+  height?: number;
+}
+
+export interface SvgCarouselResult {
+  isCarousel: boolean;
+  slides: CarouselSlide[];
+  aspectRatio: number;
+}
+
+/**
+ * Checks whether a given string is SVG XML source code
+ */
+export function isSvgSourceCode(code: string): boolean {
+  if (!code || typeof code !== 'string') return false;
+  const trimmed = code.trim();
+  return (
+    (trimmed.startsWith('<svg') && trimmed.includes('</svg>')) ||
+    (trimmed.startsWith('<?xml') && trimmed.includes('<svg') && trimmed.includes('</svg>'))
+  );
+}
+
+/**
+ * Detects whether an AST node is an interactive SVG-based carousel / slider.
+ * Extracts normalized slides and aspect ratio for native Swiper rendering.
+ */
+export function detectSvgCarousel(node: ASTNode): SvgCarouselResult | null {
+  if (!node) return null;
+
+  // Case 1: SVG container with multiple image frames or swipeable children
+  if (node.name === 'svg') {
+    const slides: CarouselSlide[] = [];
+
+    function findSlides(curr: ASTNode, currentHref?: string) {
+      const effectiveHref = currentHref || curr.attrs?.href || curr.attrs?.['data-href'];
+
+      if (curr.name === 'image') {
+        const src = curr.attrs?.['xlink:href'] || curr.attrs?.href || curr.attrs?.['data-src'] || curr.attrs?.src;
+        if (src) {
+          slides.push({
+            src,
+            href: effectiveHref,
+            title: curr.attrs?.title || curr.attrs?.alt,
+            width: Number(curr.attrs?.width) || undefined,
+            height: Number(curr.attrs?.height) || undefined
+          });
+        }
+      }
+
+      if (curr.name === 'a') {
+        const aHref = curr.attrs?.href || curr.attrs?.['data-href'];
+        if (curr.children) {
+          for (const child of curr.children) {
+            findSlides(child, aHref);
+          }
+        }
+        return;
+      }
+
+      if (curr.children) {
+        for (const child of curr.children) {
+          findSlides(child, effectiveHref);
+        }
+      }
+    }
+
+    findSlides(node);
+
+    // If there are 2 or more distinct images inside this SVG, it represents a multi-frame / carousel SVG
+    if (slides.length >= 2) {
+      const vbRatio = extractSvgViewBoxRatio(node);
+      const firstSlideRatio =
+        slides[0].width && slides[0].height && slides[0].width > 0 && slides[0].height > 0
+          ? parseFloat((slides[0].width / slides[0].height).toFixed(4))
+          : undefined;
+
+      const aspectRatio = vbRatio || firstSlideRatio || 16 / 9;
+
+      return {
+        isCarousel: true,
+        slides,
+        aspectRatio
+      };
+    }
+  }
+
+  // Case 2: WeChat horizontal scroll container with multiple SVG / Image slides
+  if (node.name === 'section' || node.name === 'div') {
+    const isOverflowX =
+      node.styleObj?.overflowX === 'scroll' ||
+      node.styleObj?.overflowX === 'auto' ||
+      node.styleObj?.whiteSpace === 'nowrap' ||
+      (node.styleStr && (node.styleStr.includes('overflow-x') || node.styleStr.includes('scroll-snap')));
+
+    const hasTools =
+      node.attrs?.['data-tools'] === '135editor' ||
+      node.attrs?.['data-brushtype'] ||
+      (node.attrs?.class && node.attrs.class.includes('slider'));
+
+    if ((isOverflowX || hasTools) && node.children && node.children.length >= 2) {
+      const slides: CarouselSlide[] = [];
+
+      for (const child of node.children) {
+        if (child.name === 'img') {
+          const src = child.attrs?.src || child.attrs?.['data-src'];
+          if (src) {
+            slides.push({
+              src,
+              href: child.attrs?.href || child.attrs?.['data-href'],
+              title: child.attrs?.title || child.attrs?.alt
+            });
+          }
+        } else if (child.name === 'svg') {
+          // Inner SVG wrapping single image
+          const innerRes = detectSvgCarousel(child);
+          if (innerRes && innerRes.slides.length > 0) {
+            slides.push(...innerRes.slides);
+          }
+        }
+      }
+
+      if (slides.length >= 2) {
+        return {
+          isCarousel: true,
+          slides,
+          aspectRatio: 16 / 9
+        };
+      }
+    }
+  }
+
+  return null;
+}
+

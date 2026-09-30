@@ -313,6 +313,38 @@ const CUSTOM_PRESETS: { title: string; desc: string; html: string }[] = [
 </div>`,
   },
   {
+    title: "🎠 SVG 交互轮播图",
+    desc: "公众号多帧 SVG 映射为原生 Swiper",
+    html: `<div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+  <h3 style="font-size: 16px; font-weight: bold; color: #1e293b; margin: 0 0 8px 0;">🎠 SVG 交互轮播图</h3>
+  <p style="font-size: 13px; color: #64748b; margin: 0 0 12px 0;">公众号多帧 SVG 自动识别并转化为原生 Swiper，支持滑动手势、指示点与点击图片画廊：</p>
+  <svg viewBox="0 0 750 420" width="100%" style="width: 100%; border-radius: 8px;">
+    <g>
+      <a href="https://example.com/gallery1">
+        <image xlink:href="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop" width="750" height="420" title="第一帧：海滨夕阳" />
+      </a>
+      <a href="https://example.com/gallery2">
+        <image xlink:href="https://images.unsplash.com/photo-1519046904884-53103b34b206?w=800&auto=format&fit=crop" width="750" height="420" title="第二帧：蔚蓝海岸" />
+      </a>
+      <image xlink:href="https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop" width="750" height="420" title="第三帧：芯片微构架" />
+    </g>
+  </svg>
+</div>`,
+  },
+  {
+    title: "💻 SVG 源码双模展示",
+    desc: "XML 语法着色 + 一键复制 + 源码/预览切换",
+    html: `<div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+  <h3 style="font-size: 16px; font-weight: bold; color: #1e293b; margin: 0 0 8px 0;">💻 SVG 格式代码展示与双模预览</h3>
+  <p style="font-size: 13px; color: #64748b; margin: 0 0 12px 0;">代码块内以 XML 语法着色展示，支持一键复制代码与「💻 源码 / 👁️ 预览」双模实时切换：</p>
+  <pre><code class="language-xml">&lt;!-- 微信公众号矢量勋章 SVG --&gt;
+&lt;svg viewBox="0 0 200 200" width="160" height="160" xmlns="http://www.w3.org/2000/svg"&gt;
+  &lt;circle cx="100" cy="100" r="90" fill="#f0fdf4" stroke="#07c160" stroke-width="6" /&gt;
+  &lt;polygon points="100,35 120,78 168,82 132,114 142,160 100,135 58,160 68,114 32,82 80,78" fill="#07c160" /&gt;
+&lt;/svg&gt;</code></pre>
+</div>`,
+  },
+  {
     title: "📰 复杂排版文章",
     desc: "SVG 矢量穿透 + 56px 不对称 Flex + 双列积木",
     html: WX_ARTICLE_SAMPLE,
@@ -683,7 +715,7 @@ export default function Index() {
           <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4 }}>
             <Text style={{ fontSize: 11, color: currentTheme.textSecondary }}>🧪 测试</Text>
             <Text style={{ fontSize: 11, fontWeight: "bold", color: "#10b981" }}>
-              92项 100%
+              100项 100%
             </Text>
           </View>
         </View>

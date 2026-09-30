@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { View, Text, Textarea, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { OmniRichText, ThemeConfig } from "omni-rich-text/taro";
@@ -115,7 +115,7 @@ const WX_ARTICLE_SAMPLE = `
         <!-- 9. 富文本表格展示 (支持横向滚动) -->
         <section style="margin: 18px 0;">
           <h3 style="font-size: 16px; font-weight: bold; color: #1e293b; margin: 0 0 10px 0;">📊 技术特性对比表</h3>
-          <table style="width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.6;">
+          <table style="min-width: 480px; table-layout: fixed; border-collapse: collapse; font-size: 13px; line-height: 1.6;">
             <thead>
               <tr style="background-color: #f8fafc;">
                 <th style="padding: 8px; border: 1px solid #e5e7eb; text-align: left;">排版维度</th>
@@ -458,22 +458,7 @@ export default function Index() {
   const [clampSubMode, setClampSubMode] = useState<"height" | "ast" | "image">("height");
   const [customHtml, setCustomHtml] = useState<string>(CUSTOM_PRESETS[0].html);
   const [isCustomEditorCollapsed, setIsCustomEditorCollapsed] = useState<boolean>(false);
-  const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [fontScale, setFontScale] = useState<number>(1.0);
-  const [fontSize, setFontSize] = useState<string>("1rem");
-  const [enableSkeleton, setEnableSkeleton] = useState<boolean>(true);
-  const [enableChunked, setEnableChunked] = useState<boolean>(true);
-
-  // 性能与 AST 指标监控
-  const [metrics, setMetrics] = useState({
-    parseDuration: 2.1,
-    nodeCount: 68,
-    galleryCount: 1,
-  });
-
-  // 最近触发事件监控流
-  const [eventLogs, setEventLogs] = useState<Array<{ id: number; time: string; text: string; icon: string }>>([]);
 
   const currentTheme = THEMES[currentThemeKey] || THEMES.wechat;
 
@@ -490,14 +475,14 @@ export default function Index() {
     setToastMessage(msg);
   };
 
-  const logEvent = (icon: string, text: string) => {
-    const now = new Date();
-    const timeStr = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`;
-    setEventLogs((prev) => [
-      { id: Date.now(), time: timeStr, text, icon },
-      ...prev.slice(0, 5),
-    ]);
-  };
+
+  // 性能与 AST 指标监控
+  const [metrics, setMetrics] = useState({
+    parseDuration: 2.1,
+    nodeCount: 68,
+    galleryCount: 1,
+  });
+
 
   const getContent = () => {
     switch (mode) {
@@ -586,7 +571,6 @@ export default function Index() {
         minHeight: "100vh",
         boxSizing: "border-box",
         position: "relative",
-        paddingBottom: "48px",
       }}
     >
       {/* 1. 顶部品牌与技术指标状态栏 */}
@@ -644,7 +628,6 @@ export default function Index() {
                 const nextKey = keys[nextIdx];
                 setCurrentThemeKey(nextKey);
                 showToast(`已切换主题: ${THEMES[nextKey].icon} ${THEMES[nextKey].name}`);
-                logEvent("🎨", `切换主题为 ${THEMES[nextKey].name}`);
               }}
               style={{
                 display: "flex",
@@ -662,20 +645,6 @@ export default function Index() {
               <Text style={{ fontSize: 11, fontWeight: "600", color: currentTheme.primary }}>
                 {currentTheme.name}
               </Text>
-            </View>
-
-            {/* Settings Trigger */}
-            <View
-              onClick={() => setIsSettingsDrawerOpen(true)}
-              style={{
-                padding: "6px 8px",
-                borderRadius: 999,
-                backgroundColor: currentTheme.bgLight,
-                border: `1px solid ${currentTheme.border}`,
-                cursor: "pointer",
-              }}
-            >
-              <Text style={{ fontSize: 13 }}>⚙️</Text>
             </View>
           </View>
         </View>
@@ -753,7 +722,6 @@ export default function Index() {
                   onClick={() => {
                     setMode(tab.key);
                     showToast(`已切换至: ${tab.label}`);
-                    logEvent(tab.icon, `切换场景为 [${tab.label}]`);
                   }}
                   style={{
                     display: "inline-flex",
@@ -850,7 +818,6 @@ export default function Index() {
                 onClick={() => {
                   setCustomHtml("");
                   showToast("已清空代码");
-                  logEvent("🧹", "清空自定义 HTML 源码");
                 }}
                 style={{
                   padding: "3px 8px",
@@ -893,7 +860,6 @@ export default function Index() {
                     onClick={() => {
                       setCustomHtml(preset.html);
                       showToast(`已载入: ${preset.title}`);
-                      logEvent("📄", `载入模板 [${preset.title}]`);
                     }}
                     style={{
                       padding: "4px 9px",
@@ -963,7 +929,6 @@ export default function Index() {
               onClick={() => {
                 setClampSubMode(item.key as any);
                 showToast(`已切换至: ${item.label}`);
-                logEvent("✂️", `切换裁剪模式为 [${item.label}]`);
               }}
               style={{
                 flex: 1,
@@ -999,9 +964,7 @@ export default function Index() {
           content={getContent()}
           format={mode === "markdown" ? "markdown" : "html"}
           mode={mode === "long_article" || mode === "custom_html" ? "wechat" : "default"}
-          fontScale={fontScale}
-          fontSize={fontSize}
-          chunked={mode === "long_article" ? enableChunked : false}
+          chunked={mode === "long_article"}
           chunkSize={15}
           theme={currentTheme.config}
           clampMaxHeight={mode === "clamp" && clampSubMode === "height" ? 210 : undefined}
@@ -1013,29 +976,24 @@ export default function Index() {
           imageCropRatio={mode === "clamp" && clampSubMode === "image" ? 16 / 9 : undefined}
           imageCropMode={mode === "clamp" && clampSubMode === "image" ? "aspectFill" : undefined}
           components={{ "product-card": ProductCard }}
-          imageSkeleton={enableSkeleton}
+          imageSkeleton={true}
           webviewPath="/pages/webview/index"
           tabBarList={["/pages/index/index", "/pages/about/index"]}
           onExpandChange={(expanded) => {
             showToast(expanded ? "已展开全文" : "已收起全文");
-            logEvent("↕️", expanded ? "点击展开全文" : "点击收起全文");
           }}
           onLinkTap={(ctx) => {
             showToast(`点击链接: ${ctx.href}`);
-            logEvent("🔗", `拦截到链接: ${ctx.href}`);
             Taro.showToast({ title: `拦截到链接: ${ctx.href}`, icon: "none" });
           }}
-          onImageTap={({ src, index }) => {
+          onImageTap={({ index }) => {
             showToast(`点击图片 [${index + 1}]`);
-            logEvent("🖼️", `手势放大预览图片 [${index + 1}]`);
           }}
           onLongPressText={(text) => {
             showToast(`长按复制: "${text.slice(0, 16)}..."`);
-            logEvent("📋", `长按复制文本: "${text.slice(0, 14)}..."`);
           }}
           onMediaEvent={(payload) => {
             showToast(`多媒体 [${payload.type}]`);
-            logEvent("🎬", `多媒体交互: ${payload.type}`);
           }}
         />
       </View>
@@ -1080,372 +1038,7 @@ export default function Index() {
         </View>
       )}
 
-      {/* 8. 右下角常驻悬浮排版与调试胶囊按钮 */}
-      <View
-        onClick={() => setIsSettingsDrawerOpen(true)}
-        style={{
-          position: "fixed",
-          bottom: 24,
-          right: 16,
-          zIndex: 40,
-          backgroundColor: currentTheme.cardBg,
-          border: `1px solid ${currentTheme.primary}`,
-          borderRadius: 9999,
-          padding: "8px 16px",
-          boxShadow: `0 6px 18px ${currentTheme.primary}33`,
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 6,
-          cursor: "pointer",
-          userSelect: "none",
-        }}
-      >
-        <Text style={{ fontSize: 14 }}>🔤</Text>
-        <Text style={{ fontSize: 13, fontWeight: "bold", color: currentTheme.primary }}>
-          排版调试
-        </Text>
-      </View>
-
-      {/* 9. 底部全能排版与调试抽屉 (Bottom Drawer) */}
-      {isSettingsDrawerOpen && (
-        <View
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 90,
-          }}
-        >
-          {/* 遮罩背景 */}
-          <View
-            onClick={() => setIsSettingsDrawerOpen(false)}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.45)",
-              backdropFilter: "blur(3px)",
-              WebkitBackdropFilter: "blur(3px)",
-            }}
-          />
-
-          {/* 抽屉面板 */}
-          <View
-            style={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              backgroundColor: currentTheme.cardBg,
-              borderTopLeftRadius: 18,
-              borderTopRightRadius: 18,
-              padding: "18px 20px 32px 20px",
-              boxShadow: "0 -8px 30px rgba(0, 0, 0, 0.15)",
-              boxSizing: "border-box",
-              maxHeight: "85vh",
-              overflowY: "auto",
-            }}
-          >
-            {/* 抽屉头部 */}
-            <View
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 16,
-                paddingBottom: 12,
-                borderBottom: `1px solid ${currentTheme.border}`,
-              }}
-            >
-              <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Text style={{ fontSize: 16 }}>⚙️</Text>
-                <Text style={{ fontSize: 15, fontWeight: "bold", color: currentTheme.textPrimary }}>
-                  排版与多主题调试控制台
-                </Text>
-              </View>
-              <View
-                onClick={() => setIsSettingsDrawerOpen(false)}
-                style={{
-                  padding: "4px 8px",
-                  borderRadius: 9999,
-                  backgroundColor: currentTheme.bgLight,
-                  color: currentTheme.textSecondary,
-                  fontSize: 12,
-                  cursor: "pointer",
-                }}
-              >
-                ✕ 完成
-              </View>
-            </View>
-
-            {/* 1. 主题换肤选择器 */}
-            <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 13, fontWeight: "600", color: currentTheme.textPrimary, marginBottom: 8, display: "block" }}>
-                🎨 实时主题换肤
-              </Text>
-              <View style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
-                {Object.entries(THEMES).map(([tKey, tVal]) => {
-                  const isSel = currentThemeKey === tKey;
-                  return (
-                    <View
-                      key={tKey}
-                      onClick={() => {
-                        setCurrentThemeKey(tKey);
-                        showToast(`已应用主题: ${tVal.name}`);
-                        logEvent("🎨", `应用主题 [${tVal.name}]`);
-                      }}
-                      style={{
-                        padding: "8px 0",
-                        textAlign: "center",
-                        borderRadius: 8,
-                        fontSize: 12,
-                        fontWeight: isSel ? "bold" : "normal",
-                        backgroundColor: isSel ? tVal.bgLight : currentTheme.pageBg,
-                        color: isSel ? tVal.primary : currentTheme.textSecondary,
-                        border: `1px solid ${isSel ? tVal.primary : currentTheme.border}`,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <Text style={{ fontSize: 14 }}>{tVal.icon}</Text>
-                      <Text style={{ display: "block", marginTop: 2 }}>{tVal.name}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* 2. 字体缩放比例 (fontScale) */}
-            <View style={{ marginBottom: 16 }}>
-              <View style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                <Text style={{ fontSize: 13, fontWeight: "600", color: currentTheme.textPrimary }}>
-                  字体缩放比例 (fontScale)
-                </Text>
-                <Text style={{ fontSize: 12, color: currentTheme.primary, fontWeight: "bold" }}>
-                  {fontScale}x
-                </Text>
-              </View>
-              <View style={{ display: "flex", flexDirection: "row", gap: 8 }}>
-                {[
-                  { label: "0.85x (紧凑)", val: 0.85 },
-                  { label: "1.0x (推荐)", val: 1.0 },
-                  { label: "1.15x (适度)", val: 1.15 },
-                  { label: "1.3x (大号)", val: 1.3 },
-                ].map((item) => {
-                  const isSel = fontScale === item.val;
-                  return (
-                    <View
-                      key={item.val}
-                      onClick={() => {
-                        setFontScale(item.val);
-                        showToast(`缩放切换为 ${item.val}x`);
-                        logEvent("🔤", `调整字体缩放为 ${item.val}x`);
-                      }}
-                      style={{
-                        flex: 1,
-                        padding: "8px 0",
-                        textAlign: "center",
-                        borderRadius: 8,
-                        fontSize: 12,
-                        fontWeight: isSel ? "bold" : "normal",
-                        backgroundColor: isSel ? currentTheme.bgLight : currentTheme.pageBg,
-                        color: isSel ? currentTheme.primary : currentTheme.textSecondary,
-                        border: `1px solid ${isSel ? currentTheme.primary : currentTheme.border}`,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {item.label}
-                    </View>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* 3. 基准字号 (rem) */}
-            <View style={{ marginBottom: 16 }}>
-              <View style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                <Text style={{ fontSize: 13, fontWeight: "600", color: currentTheme.textPrimary }}>
-                  基准字号 (fontSize rem)
-                </Text>
-                <Text style={{ fontSize: 12, color: currentTheme.primary, fontWeight: "bold" }}>
-                  {fontSize}
-                </Text>
-              </View>
-              <View style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {[
-                  { label: "0.875rem (14px)", val: "0.875rem" },
-                  { label: "1.0rem (16px 默认)", val: "1rem" },
-                  { label: "1.125rem (18px)", val: "1.125rem" },
-                  { label: "1.25rem (20px)", val: "1.25rem" },
-                ].map((item) => {
-                  const isSel = fontSize === item.val;
-                  return (
-                    <View
-                      key={item.val}
-                      onClick={() => {
-                        setFontSize(item.val);
-                        showToast(`基准字号切换为 ${item.label}`);
-                        logEvent("📏", `调整基准字号为 ${item.label}`);
-                      }}
-                      style={{
-                        padding: "8px 0",
-                        textAlign: "center",
-                        borderRadius: 8,
-                        fontSize: 12,
-                        fontWeight: isSel ? "bold" : "normal",
-                        backgroundColor: isSel ? currentTheme.bgLight : currentTheme.pageBg,
-                        color: isSel ? currentTheme.primary : currentTheme.textSecondary,
-                        border: `1px solid ${isSel ? currentTheme.primary : currentTheme.border}`,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {item.label}
-                    </View>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* 4. 核心功能开关 */}
-            <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 13, fontWeight: "600", color: currentTheme.textPrimary, marginBottom: 8, display: "block" }}>
-                ⚡ 核心特性开关
-              </Text>
-              <View style={{ display: "flex", flexDirection: "row", gap: 10 }}>
-                <View
-                  onClick={() => {
-                    setEnableSkeleton(!enableSkeleton);
-                    showToast(enableSkeleton ? "已关闭图片骨架屏" : "已开启图片骨架屏");
-                    logEvent("🖼️", enableSkeleton ? "关闭骨架屏" : "开启骨架屏");
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: "9px 10px",
-                    borderRadius: 8,
-                    fontSize: 12,
-                    display: "flex",
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    backgroundColor: enableSkeleton ? currentTheme.bgLight : currentTheme.pageBg,
-                    border: `1px solid ${enableSkeleton ? currentTheme.primary : currentTheme.border}`,
-                    cursor: "pointer",
-                  }}
-                >
-                  <Text style={{ color: currentTheme.textPrimary }}>图片骨架屏</Text>
-                  <Text style={{ fontWeight: "bold", color: enableSkeleton ? currentTheme.primary : currentTheme.textSecondary }}>
-                    {enableSkeleton ? "开启" : "关闭"}
-                  </Text>
-                </View>
-
-                <View
-                  onClick={() => {
-                    setEnableChunked(!enableChunked);
-                    showToast(enableChunked ? "已关闭长文切片" : "已开启长文切片");
-                    logEvent("⚡", enableChunked ? "关闭分批切片" : "开启分批切片");
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: "9px 10px",
-                    borderRadius: 8,
-                    fontSize: 12,
-                    display: "flex",
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    backgroundColor: enableChunked ? currentTheme.bgLight : currentTheme.pageBg,
-                    border: `1px solid ${enableChunked ? currentTheme.primary : currentTheme.border}`,
-                    cursor: "pointer",
-                  }}
-                >
-                  <Text style={{ color: currentTheme.textPrimary }}>长文切片渲染</Text>
-                  <Text style={{ fontWeight: "bold", color: enableChunked ? currentTheme.primary : currentTheme.textSecondary }}>
-                    {enableChunked ? "开启" : "关闭"}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* 5. 实时交互事件监听流面板 */}
-            {eventLogs.length > 0 && (
-              <View style={{ marginBottom: 16 }}>
-                <View style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: currentTheme.textPrimary }}>
-                    📋 实时交互监听流
-                  </Text>
-                  <Text
-                    onClick={() => setEventLogs([])}
-                    style={{ fontSize: 11, color: currentTheme.textSecondary, cursor: "pointer" }}
-                  >
-                    清空日志
-                  </Text>
-                </View>
-                <View
-                  style={{
-                    backgroundColor: currentTheme.pageBg,
-                    borderRadius: 8,
-                    padding: "8px 10px",
-                    border: `1px solid ${currentTheme.border}`,
-                  }}
-                >
-                  {eventLogs.map((log) => (
-                    <View
-                      key={log.id}
-                      style={{
-                        display: "flex",
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 6,
-                        fontSize: 11,
-                        padding: "3px 0",
-                        borderBottom: `1px dashed ${currentTheme.border}`,
-                      }}
-                    >
-                      <Text style={{ color: currentTheme.textSecondary, fontSize: 10 }}>[{log.time}]</Text>
-                      <Text style={{ fontSize: 12 }}>{log.icon}</Text>
-                      <Text style={{ color: currentTheme.textPrimary, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {log.text}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* 恢复默认按钮 */}
-            <View
-              onClick={() => {
-                setFontScale(1.0);
-                setFontSize("1rem");
-                setCurrentThemeKey("wechat");
-                setEnableSkeleton(true);
-                setEnableChunked(true);
-                showToast("已恢复默认排版设置");
-                logEvent("🔄", "恢复默认排版设置");
-              }}
-              style={{
-                width: "100%",
-                padding: "10px 0",
-                textAlign: "center",
-                borderRadius: 8,
-                backgroundColor: currentTheme.bgLight,
-                color: currentTheme.textSecondary,
-                fontSize: 13,
-                fontWeight: "500",
-                border: `1px solid ${currentTheme.border}`,
-                cursor: "pointer",
-              }}
-            >
-              🔄 恢复默认排版设置
-            </View>
-          </View>
-        </View>
-      )}
     </View>
   );
 }
+

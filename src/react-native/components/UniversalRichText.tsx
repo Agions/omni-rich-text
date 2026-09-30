@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { View, Linking, Alert } from 'react-native';
+import { View, Text, Pressable, Linking, Alert } from 'react-native';
 import {
   parseRichContent,
   chunkAST,
@@ -46,6 +46,13 @@ export const OmniRichText: React.FC<OmniRichTextProps> = ({
   showImageError = false,
   customRender,
   tabBarList = [],
+  truncate,
+  truncateLength,
+  clampMaxHeight,
+  expandText = '展开全文',
+  collapseText = '收起',
+  showCollapse = true,
+  onExpandChange,
   onLinkTap,
   onImageTap,
   onLongPressText,
@@ -56,6 +63,20 @@ export const OmniRichText: React.FC<OmniRichTextProps> = ({
   const effectiveRootFontSize = rootFontSize ?? theme?.rootFontSize ?? WECHAT_REM_BASE;
   const effectiveBaseFontSize = Number(baseFontSize ?? theme?.baseFontSize ?? DEFAULT_BASE_FONT_SIZE);
   const effectiveContentBaseFontSize = Number(contentBaseFontSize ?? theme?.contentBaseFontSize ?? DEFAULT_CONTENT_BASE_FONT_SIZE);
+
+  const effectiveTruncate = useMemo(() => {
+    if (truncate) return truncate;
+    if (truncateLength !== undefined) return { maxLength: truncateLength };
+    return undefined;
+  }, [truncate, truncateLength]);
+
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const handleToggleExpand = useCallback(() => {
+    const next = !isExpanded;
+    setIsExpanded(next);
+    onExpandChange?.(next);
+  }, [isExpanded, onExpandChange]);
 
   // ── 1. Parse & optimize content → AST ─────────────────────────────────────
   const { ast, galleryList, themeBgColor } = useMemo(() => {
@@ -71,9 +92,10 @@ export const OmniRichText: React.FC<OmniRichTextProps> = ({
       contentBaseFontSize: effectiveContentBaseFontSize,
       fontSize,
       fontSizeResolver,
+      truncate: effectiveTruncate,
       cache
     });
-  }, [content, format, mode, maxDepth, extractStyles, effectiveRemScale, effectiveFontScale, effectiveRootFontSize, effectiveBaseFontSize, effectiveContentBaseFontSize, fontSize, fontSizeResolver, cache]);
+  }, [content, format, mode, maxDepth, extractStyles, effectiveRemScale, effectiveFontScale, effectiveRootFontSize, effectiveBaseFontSize, effectiveContentBaseFontSize, fontSize, fontSizeResolver, effectiveTruncate, cache]);
 
   // ── 2. Chunk calculation ───────────────────────────────────────────────────
   const chunkedData = useMemo(() => {
@@ -182,23 +204,52 @@ export const OmniRichText: React.FC<OmniRichTextProps> = ({
   }, [theme, fontSize, effectiveFontScale]);
 
   // ── 5. Render ──────────────────────────────────────────────────────────────
+  const isClamped = Boolean(clampMaxHeight && clampMaxHeight > 0 && !isExpanded);
+
   return (
     <View style={[{ maxWidth: '100%', backgroundColor: (style as any)?.backgroundColor }, style as any]}>
-      {displayNodes.map((node) => (
-        <RnNodeRenderer
-          key={node.id}
-          node={node}
-          theme={effectiveTheme}
-          imageSkeleton={imageSkeleton}
-          showImageError={showImageError}
-          imageLinkAction={imageLinkAction}
-          onLinkTap={handleLinkTap}
-          onImageTap={handleImageTap}
-          onLongPressText={handleLongPressText}
-          onMediaEvent={onMediaEvent}
-          customRender={customRender}
-        />
-      ))}
+      <View style={isClamped ? { maxHeight: clampMaxHeight, overflow: 'hidden' } : undefined}>
+        {displayNodes.map((node) => (
+          <RnNodeRenderer
+            key={node.id}
+            node={node}
+            theme={effectiveTheme}
+            imageSkeleton={imageSkeleton}
+            showImageError={showImageError}
+            imageLinkAction={imageLinkAction}
+            onLinkTap={handleLinkTap}
+            onImageTap={handleImageTap}
+            onLongPressText={handleLongPressText}
+            onMediaEvent={onMediaEvent}
+            customRender={customRender}
+          />
+        ))}
+      </View>
+
+      {clampMaxHeight && (isClamped || showCollapse) && (
+        <View style={{ alignItems: 'center', marginTop: isClamped ? -12 : 12, zIndex: 10 }}>
+          <Pressable
+            onPress={handleToggleExpand}
+            style={{
+              paddingHorizontal: 16,
+              paddingVertical: 6,
+              backgroundColor: '#ffffff',
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: 'rgba(0,0,0,0.08)',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.06,
+              shadowRadius: 4,
+              elevation: 2
+            }}
+          >
+            <Text style={{ fontSize: 13, color: effectiveTheme.linkColor || '#07c160', fontWeight: '500' }}>
+              {isClamped ? `${expandText} ▼` : `${collapseText} ▲`}
+            </Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 };

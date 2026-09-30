@@ -37,6 +37,10 @@ export interface NodeRendererProps {
   /** Action when tapping an image that has a link. 'link': navigate (default), 'preview': open gallery, 'both': both */
   imageLinkAction?: 'link' | 'preview' | 'both';
   selectable?: boolean;
+  /** Global image crop mode: 'widthFix' | 'aspectFill' | 'aspectFit' | 'auto' */
+  imageCropMode?: 'widthFix' | 'aspectFill' | 'aspectFit' | 'auto';
+  /** Global image crop aspect ratio (e.g. 16/9, 4/3, 1) */
+  imageCropRatio?: number;
 }
 
 /**
@@ -83,6 +87,8 @@ const OmniImage: React.FC<{
   imageSkeleton?: boolean;
   imageSkeletonColor?: string;
   showImageError?: boolean;
+  imageCropMode?: 'widthFix' | 'aspectFill' | 'aspectFit' | 'auto';
+  imageCropRatio?: number;
   onImageClick: (src: string, node: ASTNode) => void;
   onLinkClick: (href: string, node: ASTNode) => void;
   onNodeEvent?: (eventType: string, node: ASTNode, rawEvent: any) => void;
@@ -94,6 +100,8 @@ const OmniImage: React.FC<{
   imageSkeleton = true,
   imageSkeletonColor = '#f1f5f9',
   showImageError = false,
+  imageCropMode,
+  imageCropRatio,
   onImageClick,
   onLinkClick,
   onNodeEvent
@@ -173,6 +181,12 @@ const OmniImage: React.FC<{
     );
   }
 
+  const effectiveImgMode =
+    (node.attrs.mode as any) ||
+    (imageCropMode && imageCropMode !== 'auto' ? imageCropMode : null) ||
+    (imageCropRatio ? 'aspectFill' : null) ||
+    (node.styleObj?.height && !isFullWidth ? 'aspectFit' : 'widthFix');
+
   return (
     <View
       className="omni-image-wrap"
@@ -190,7 +204,9 @@ const OmniImage: React.FC<{
         flex: node.styleObj?.flex,
         cursor: effectiveHref ? 'pointer' : undefined,
         backgroundColor: imageSkeleton && !loaded && !hasError ? imageSkeletonColor : 'transparent',
-        ...(aspectRatio && !loaded
+        ...(imageCropRatio
+          ? { aspectRatio: String(imageCropRatio) }
+          : aspectRatio && !loaded
           ? { aspectRatio: String(aspectRatio) }
           : placeholderHeight && !loaded
           ? { paddingBottom: placeholderHeight, height: 0 }
@@ -201,12 +217,13 @@ const OmniImage: React.FC<{
       <Image
         className="omni-image"
         src={src}
-        mode={(node.attrs.mode as any) || (node.styleObj?.height && !isFullWidth ? 'aspectFit' : 'widthFix')}
+        mode={effectiveImgMode}
         lazyLoad={node.attrs['lazy-load'] !== 'false'}
         style={toTaroStyle({
           ...cleanImgStyle,
           width: isFullWidth ? '100%' : (node.styleObj?.width || '100%'),
-          height: node.styleObj?.height,
+          height: imageCropRatio ? '100%' : node.styleObj?.height,
+          objectFit: imageCropRatio ? 'cover' : undefined,
           maxWidth: '100%',
           display: displayStyle === 'inline-block' ? 'inline-block' : 'block',
           boxSizing: 'border-box',
@@ -240,7 +257,9 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
   parentIsFlex = false,
   parentLinkHref,
   imageLinkAction = 'link',
-  selectable = false
+  selectable = false,
+  imageCropMode,
+  imageCropRatio
 }) => {
   const isCurrentFlex = isFlexDisplay(node.styleObj?.display);
   const isParentFlex = parentIsFlex || !!node.extra?.parentIsFlex;
@@ -259,6 +278,8 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
       imageSkeleton={imageSkeleton}
       showImageError={showImageError}
       theme={theme}
+      imageCropMode={imageCropMode}
+      imageCropRatio={imageCropRatio}
       onLinkClick={onLinkClick}
       onImageClick={onImageClick}
       onLongPressText={onLongPressText}

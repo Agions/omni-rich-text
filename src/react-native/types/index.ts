@@ -1,6 +1,6 @@
-import { ASTNode, LinkTapContext, MediaEventPayload, ThemeConfig } from '../../core';
+import { ASTNode, LinkTapContext, MediaEventPayload, ThemeConfig, TruncateOptions } from '../../core';
 
-export type { ThemeConfig };
+export type { ThemeConfig, TruncateOptions };
 
 export interface OmniRichTextProps {
   /** Rich text content (HTML or Markdown string) */
@@ -107,6 +107,20 @@ export interface OmniRichTextProps {
 
   /** Called for video / audio playback events when using a custom player via customRender */
   onMediaEvent?: (payload: MediaEventPayload) => void;
+  /** Safe AST truncation options for generating excerpts and clamping node size */
+  truncate?: TruncateOptions;
+  /** Quick alias for truncate.maxLength (number of characters) */
+  truncateLength?: number;
+  /** Max height threshold for visual container clamping with expand/collapse (e.g. 240) */
+  clampMaxHeight?: number;
+  /** Text for expand button. Defaults to '展开全文' */
+  expandText?: string;
+  /** Text for collapse button. Defaults to '收起' */
+  collapseText?: string;
+  /** Whether to show collapse button after expanding. Defaults to true */
+  showCollapse?: boolean;
+  /** Callback emitted when expanded state changes */
+  onExpandChange?: (expanded: boolean) => void;
 }
 
 export type UniversalRichTextProps = OmniRichTextProps;

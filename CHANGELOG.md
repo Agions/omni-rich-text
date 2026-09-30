@@ -4,6 +4,34 @@ All notable changes to `omni-rich-text` will be documented in this file.
 
 ---
 
+## [0.1.5] - 2026-09-30
+
+### ✂️ 富文本排版裁剪体系：容器限高展开、AST 摘要截断与图片比例裁剪（Layout Clamping & Media Crop）
+
+- **🪟 容器级高度截断与“展开 / 收起”交互体系**
+  - **优雅限高与渐变蒙层**：新增 `clampMaxHeight`（如 `210` 或 `'210px'`）属性。超出指定高度时自动触发底部平滑渐变半透明遮罩（Fade Gradient Mask），中间居中悬浮极简胶囊按钮。
+  - **智能高度检测与无缝收缩**：内置 `Taro.createSelectorQuery()` 动态测量。内容未超出阈值时自然平铺，不展示多余遮罩；展开后支持显示 `收起` 按钮或通过 `showCollapse={false}` 展开后隐藏操作区。
+  - **自定义交互文案与事件**：支持 `expandText`（默认 `'展开全文'`）、`collapseText`（默认 `'收起'`）及 `onExpandChange` 状态变更通知。
+
+- **🌲 AST 逻辑层安全字数截断与摘要提炼 (`truncator.ts`)**
+  - **100% 标签闭合安全保证**：新增 `truncateAST` 与 `truncateRichContent`，并在 `ParseOptions` 中集成 `truncate?: TruncateOptions`（组件层支持 `truncateLength={90}` 简写）。
+  - **零非法孤儿标签**：在任意深层标签内切断正文时，自动补全关闭所有父级 HTML 标签，保证 AST 树结构绝对合法。
+  - **多媒体保留开关**：`preserveMedia?: boolean`（默认 `true` 保留范围内的图片与视频，适合图文卡片摘要；`false` 纯净过滤多媒体生成纯文本摘要）。
+  - **智能省略号挂载**：支持 `ellipsis?: string`（默认 `'...'`），智能拼接在最后一个截断的文本节点末尾。
+
+- **🖼️ 图片多媒体智能裁剪与圆角防刺穿（Border-Radius Shielding）**
+  - **固定比例裁剪**：新增 `imageCropRatio`（如 `16 / 9`、`4 / 3`、`1`）与 `imageCropMode`（`'aspectFill'` / `'widthFix'`），自动将图片约束为目标比例并居中裁剪填充（`object-fit: cover`），完美适配信创卡片与图文瀑布流。
+  - **圆角防刺穿安全裁剪**：样式解析器智能感知带 `border-radius` 的容器，自动补充 `overflow: hidden;`，彻底杜绝内部直角图片或渐变背景刺穿外层圆角。
+
+- **📱 Demo 交互体验升级**
+  - Demo 新增「✂️ 截断裁剪」专属演示 Tab，提供 `限高展开 (210px)`、`AST 摘要 (90字)` 与 `16:9 裁剪` 3 组实时交互对比。
+
+- **🧪 专项测试覆盖**
+  - 新增 `truncate.test.ts` 专项单测套件（8 项测试）。
+  - 全套核心单测增至 83 项，通过率 100%。
+
+---
+
 ## [0.1.4] - 2026-09-30
 
 ### ⚡ AST 无损智能剪枝瘦身 & 加权自适应切片分批（Extreme Performance & AST Pruning）

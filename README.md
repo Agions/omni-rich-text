@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/omni-rich-text"><img src="https://img.shields.io/npm/v/omni-rich-text.svg?color=cb3837" alt="npm version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
-  <img src="https://img.shields.io/badge/tests-75%20passed-brightgreen.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-83%20passed-brightgreen.svg" alt="Tests">
   <img src="https://img.shields.io/badge/build-tsup%20ESM%20%2B%20CJS%20%2B%20DTS-blue.svg" alt="Build Status">
   <a href="https://github.com/Agions/omni-rich-text"><img src="https://img.shields.io/github/stars/Agions/omni-rich-text?style=social" alt="GitHub stars"></a>
 </p>
@@ -57,6 +57,13 @@
 ### 9. 📦 标准预编译产物与现代化单包分发
 - 使用 `tsup` 预编译打包，提供完整的 **ESM (`.mjs`)**、**CJS (`.js`)** 与 **TypeScript 类型声明 (`.d.ts`)**，开箱即用，无需依赖方强配 Babel/TS 转译规则。
 - 现代化子路径设计：`omni-rich-text/taro`、`omni-rich-text/uni`、`omni-rich-text/react-native`、`omni-rich-text/core`、`omni-rich-text/wechat`。
+
+### 10. ✂️ 富文本排版裁剪体系：容器限高展开、AST 摘要截断与图片比例裁剪
+- **容器限高平滑截断与展开/收起 (`clampMaxHeight`)**：指定视口最大高度（如 `210` 或 `'210px'`），超出时自动截断并在底部生成 **平滑渐变虚化遮罩 (Fade Gradient Mask)** 与居中浮动胶囊切换按钮（支持自定义文案 `expandText` / `collapseText` 及状态回调 `onExpandChange`）。
+- **动态几何高度测量**：通过跨端视口几何测量（`createSelectorQuery`），若内容实际总高未超出限定高度，**智能不显示遮罩与展开按钮**，防止不必要的 UI 干扰。
+- **AST 逻辑层安全字数截断与摘要生成 (`truncate`)**：提供 `truncate` / `truncateLength` 配置与 `truncateAST` 工具函数，递归计算真实文本字符并在截断点自动补齐省略号（默认 `'...'`）。**100% 保证深层 HTML/AST 标签合法闭合**，杜绝未闭合标签或孤儿节点破坏页面整体 DOM。
+- **图片智能比例裁剪与居中填充 (`imageCropMode` / `imageCropRatio`)**：支持为图文混排批量配置裁剪比例（如 16:9、4:3、1:1）与缩放模式（`aspectFill` / `widthFix`），配合 `object-fit: cover` 居中填充，整齐划一。
+- **圆角防溢出穿透保护 (Border-Radius Shielding)**：当检测到内容或图片包含 `border-radius` 时，自动注入 `overflow: hidden;`，彻底杜绝内部图片直角刺穿外层圆角边界。
 
 ---
 
@@ -247,6 +254,15 @@ console.log(galleryList);  // 全文图片有序 URL 列表
 | `theme` | `ThemeConfig` | `{}` | 细粒度主题配色定制（超链接、引用块、代码块、表格、分割线等） |
 | `webviewPath` | `string` | `undefined` | 小程序内承载外链跳转的自定义 webview 页面路由 |
 | `tabBarList` | `string[]` | `[]` | TabBar 页面路由列表，命中链接自动调用 `switchTab` |
+| `clampMaxHeight` | `number \| string` | `undefined` | 容器最大限定高度（如 `210` 或 `'210px'`），超出时激活平滑截断与展开/收起交互 |
+| `expandText` | `string` | `'展开全文'` | 展开按钮显示文案 |
+| `collapseText` | `string` | `'收起'` | 收起按钮显示文案 |
+| `showCollapse` | `boolean` | `true` | 展开后是否展示收起按钮 |
+| `onExpandChange` | `(expanded: boolean) => void` | `undefined` | 展开/收起状态切换事件回调 |
+| `truncate` | `TruncateOptions` | `undefined` | AST 逻辑层字数安全截断与摘要配置（含 `maxLength`、`ellipsis`、`preserveMedia` 等） |
+| `truncateLength` | `number` | `undefined` | 简写属性：快速指定最大截断字数，等同于 `truncate: { maxLength }` |
+| `imageCropMode` | `'widthFix' \| 'aspectFill' \| 'aspectFit' \| 'auto'` | `'auto'` | 图片统一缩放与裁剪模式 |
+| `imageCropRatio` | `number` | `undefined` | 图片统一宽高比裁剪（如 16/9 ≈ 1.777、1 或 4/3），配合居中裁剪与圆角防溢出 |
 | `components` | `Record<string, Component>` | `undefined` | 声明式自定义组件映射表，如 `{ 'product-card': ProductCard }` |
 | `customRender` | `(node: ASTNode) => ReactNode` | `undefined` | 针对特定节点返回自定义渲染结果的拦截 Hook |
 | `onLinkTap` / `@link-tap` | `Function` | - | 链接点击拦截器，返回 `false` 可阻止默认跳转行为 |
@@ -284,10 +300,11 @@ const customTheme: ThemeConfig = {
 npm test
 ```
 
-75 项核心测试覆盖了：
+83 项核心测试覆盖了：
 - 微信公众号真实文章 1:1 高保真排版与多层嵌套还原
 - 尺寸 rem 1:1 无损换算与 1px 发丝边框保护
 - 原生标签 Display 语义属性与父级 Flexbox 弹性盒精准还原
+- 富文本排版裁剪体系（AST 字数安全截断、标签合法闭合、媒体保留/过滤、圆角防穿透保护）
 - AST 智能无损剪枝瘦身（空标签清理、连续留白折叠、单子级脱壳）
 - 加权自适应切片分批（首屏秒开与流式背景写入）
 - 图片智能混排、宽高自适应与异常静默容错

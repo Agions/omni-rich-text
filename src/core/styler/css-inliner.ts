@@ -439,6 +439,14 @@ export function resolveNodeStyles(
     merged['max-width'] = merged['max-width'] || '100%';
   }
 
+  // Border-radius overflow shielding: prevent inner media or background from piercing rounded corners
+  const radius = merged['border-radius'] || merged['border-top-left-radius'];
+  if (radius && radius !== '0' && radius !== '0px') {
+    if (!merged['overflow']) {
+      merged['overflow'] = 'hidden';
+    }
+  }
+
   const cleanStyleObj: Record<string, string> = {};
   for (const [prop, val] of Object.entries(merged)) {
     if (!val) continue;

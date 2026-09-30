@@ -1,7 +1,7 @@
 import type * as React from 'react';
-import { ASTNode, LinkTapContext, MediaEventPayload, ThemeConfig } from '../../core';
+import { ASTNode, LinkTapContext, MediaEventPayload, ThemeConfig, TruncateOptions } from '../../core';
 
-export type { ThemeConfig };
+export type { ThemeConfig, TruncateOptions };
 
 export interface OmniRichTextProps {
   /** Rich text content (HTML or Markdown) */
@@ -80,6 +80,24 @@ export interface OmniRichTextProps {
   imageSkeleton?: boolean;
   /** Whether to show a fallback placeholder when an image fails to load. Default is false (hides failed images). */
   showImageError?: boolean;
+  /** Safe AST truncation options for generating excerpts and clamping node size */
+  truncate?: TruncateOptions;
+  /** Quick alias for truncate.maxLength (number of characters) */
+  truncateLength?: number;
+  /** Max height threshold for visual container clamping with expand/collapse (e.g. 240 or '240px') */
+  clampMaxHeight?: number | string;
+  /** Text for expand button. Defaults to '展开全文' */
+  expandText?: string;
+  /** Text for collapse button. Defaults to '收起' */
+  collapseText?: string;
+  /** Whether to show collapse button after expanding. Defaults to true */
+  showCollapse?: boolean;
+  /** Callback emitted when expanded state changes */
+  onExpandChange?: (expanded: boolean) => void;
+  /** Global image crop mode override: 'widthFix' | 'aspectFill' | 'aspectFit' | 'auto' */
+  imageCropMode?: 'widthFix' | 'aspectFill' | 'aspectFit' | 'auto';
+  /** Global image crop aspect ratio (e.g. 16/9, 4/3, 1) */
+  imageCropRatio?: number;
 }
 
 export type UniversalRichTextProps = OmniRichTextProps;

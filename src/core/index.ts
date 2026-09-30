@@ -2,10 +2,11 @@
  * @universal-rt/core Entry Point
  */
 
-import { ASTNode, ParseOptions, ParseResult } from './types/ast';
+import { ASTNode, ParseOptions, ParseResult, TruncateOptions, TruncateResult } from './types/ast';
 import { parseHtml, detectArticleThemeBg } from './lexer/html-parser';
 import { optimizeAST } from './optimizer/tree-flattener';
 import { pruneAST } from './optimizer/tree-pruner';
+import { truncateAST } from './optimizer/truncator';
 import { extractGallery } from './gallery/image-extractor';
 import { markdownToHtml } from './plugins/markdown';
 import { highlightCode } from './plugins/prism';
@@ -20,6 +21,7 @@ export * from './styler/css-inliner';
 export * from './styler/wx-style-extractor';
 export * from './optimizer/tree-flattener';
 export * from './optimizer/tree-pruner';
+export * from './optimizer/truncator';
 export * from './optimizer/chunker';
 export * from './gallery/image-extractor';
 export * from './bridge/platform';
@@ -87,6 +89,18 @@ export function parseRichContent(content: string, options: ParseOptions = {}): P
     optimizedNodes = pruneAST(optimizedNodes, pruneOpts);
   }
 
+  // 4.6. AST safe truncation & excerpt (if requested)
+  let truncateInfo: ParseResult['truncateInfo'];
+  if (options.truncate) {
+    const truncRes = truncateAST(optimizedNodes, options.truncate);
+    optimizedNodes = truncRes.ast;
+    truncateInfo = {
+      isTruncated: truncRes.isTruncated,
+      totalTextLength: truncRes.totalTextLength,
+      truncatedLength: truncRes.truncatedLength
+    };
+  }
+
   // 5. Extract images and build ordered gallery list
   const { galleryList, rawImages } = extractGallery(optimizedNodes);
 
@@ -97,7 +111,8 @@ export function parseRichContent(content: string, options: ParseOptions = {}): P
     ast: optimizedNodes,
     galleryList,
     rawImages,
-    themeBgColor
+    themeBgColor,
+    truncateInfo
   };
 
   if (useCache && cacheKey) {
@@ -105,6 +120,17 @@ export function parseRichContent(content: string, options: ParseOptions = {}): P
   }
 
   return result;
+}
+
+/**
+ * Parses rich content and safely truncates it into a normalized excerpt AST.
+ */
+export function truncateRichContent(
+  content: string,
+  options: TruncateOptions & ParseOptions = {}
+): TruncateResult {
+  const parseResult = parseRichContent(content, { ...options, truncate: undefined });
+  return truncateAST(parseResult.ast, options);
 }
 
 /**

@@ -145,6 +145,34 @@ export interface ParseOptions {
    * Defaults to true. Pass false to disable, or pass a PruneOptions object for fine-grained control.
    */
   prune?: boolean | PruneOptions;
+  /**
+   * Safe AST text and node truncation options for generating excerpts and clamping DOM size.
+   */
+  truncate?: TruncateOptions;
+}
+
+export interface TruncateOptions {
+  /** Maximum character count for text content. Undefined means no character limit. */
+  maxLength?: number;
+  /** Maximum number of root/block nodes to retain. Undefined means no limit. */
+  maxNodes?: number;
+  /** Custom ellipsis string appended to the last cut text node. Defaults to '...' */
+  ellipsis?: string;
+  /** Whether to preserve image and media tags encountered within the truncation limit. Defaults to true. */
+  preserveMedia?: boolean;
+}
+
+export interface TruncateResult {
+  /** Safely truncated and structurally valid AST tree */
+  ast: ASTNode[];
+  /** Total text character count in the original content */
+  totalTextLength: number;
+  /** Character count retained in the truncated AST */
+  truncatedLength: number;
+  /** Whether truncation actually took place */
+  isTruncated: boolean;
+  /** Extracted image URLs retained in the truncated AST */
+  galleryList: string[];
 }
 
 export interface PruneOptions {
@@ -165,4 +193,10 @@ export interface ParseResult {
   rawImages: ImageGalleryItem[];
   /** Detected dominant article theme background color (if any) */
   themeBgColor?: string;
+  /** Truncation metadata if truncate option was provided */
+  truncateInfo?: {
+    isTruncated: boolean;
+    totalTextLength: number;
+    truncatedLength: number;
+  };
 }

@@ -231,10 +231,32 @@ const CUSTOM_DEFAULT_SAMPLE = `
 </div>
 `;
 
-type ModeType = "wechat" | "long_article" | "custom_html" | "html" | "markdown";
+const CLAMP_SAMPLE = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+  <section style="background: #f8fafc; border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid #e2e8f0;">
+    <h3 style="margin: 0 0 10px 0; color: #0f172a; font-size: 16px;">📰 新一代全能富文本排版裁剪与自适应流式引擎</h3>
+    <p style="color: #475569; font-size: 14px; line-height: 1.7; margin-bottom: 10px;">
+      在信息流卡片、社区推荐和详情页首屏中，长篇大论的富文本往往会导致屏幕空间被严重侵占。为此，OmniRichText 提供了<strong>容器高度截断（Clamp）</strong>、<strong>AST 逻辑字数截断（Excerpt）</strong>以及<strong>多媒体比例裁剪（AspectFill）</strong>的全套排版裁剪体系。
+    </p>
+    <figure style="margin: 12px 0;">
+      <img src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&auto=format&fit=crop" alt="代码排版" style="width: 100%; border-radius: 8px;" />
+      <figcaption style="font-size: 12px; color: #94a3b8; text-align: center; margin-top: 4px;">图：支持 16:9 比例智能裁剪与圆角防刺穿</figcaption>
+    </figure>
+    <p style="color: #475569; font-size: 14px; line-height: 1.7; margin-bottom: 10px;">
+      当配置 <code>clampMaxHeight={210}</code> 时，内容在超出指定高度时自动触发优雅的底部渐变半透明遮罩，并悬浮极具现代美感的居中胶囊按钮。点击“展开全文”将平滑解除限高；再次点击即可平滑折叠收起。
+    </p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.7;">
+      同时，内置的 AST 逻辑截断引擎能够在底层解析阶段按指定字数精确切断正文，自动补全关闭所有父级 HTML 标签，绝不产生破坏性的非法孤儿标签，并智能挂载自定义省略号（如 <code>... [阅读全文]</code>）。
+    </p>
+  </section>
+</div>
+`;
+
+type ModeType = "wechat" | "long_article" | "clamp" | "custom_html" | "html" | "markdown";
 
 export default function Index() {
   const [mode, setMode] = useState<ModeType>("wechat");
+  const [clampSubMode, setClampSubMode] = useState<"height" | "ast" | "image">("height");
   const [customHtml, setCustomHtml] = useState<string>(CUSTOM_DEFAULT_SAMPLE);
   const [isCustomEditorCollapsed, setIsCustomEditorCollapsed] = useState<boolean>(false);
   const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState<boolean>(false);
@@ -261,6 +283,8 @@ export default function Index() {
         return WX_ARTICLE_SAMPLE;
       case "long_article":
         return LONG_ARTICLE_SAMPLE;
+      case "clamp":
+        return CLAMP_SAMPLE;
       case "custom_html":
         return customHtml;
       case "html":
@@ -273,6 +297,7 @@ export default function Index() {
   const TABS: { key: ModeType; label: string; icon: string }[] = [
     { key: "wechat", label: "公众号", icon: "📰" },
     { key: "long_article", label: "长文流式", icon: "🔥" },
+    { key: "clamp", label: "截断裁剪", icon: "✂️" },
     { key: "custom_html", label: "自定义", icon: "🛠️" },
     { key: "html", label: "HTML", icon: "🌐" },
     { key: "markdown", label: "Markdown", icon: "📝" },
@@ -490,6 +515,50 @@ export default function Index() {
         </View>
       )}
 
+      {/* 3.1 截断裁剪专属模式切换条 */}
+      {mode === "clamp" && (
+        <View
+          style={{
+            margin: "10px 14px 4px 14px",
+            backgroundColor: "#f8fafc",
+            borderRadius: 8,
+            padding: 4,
+            display: "flex",
+            flexDirection: "row",
+            gap: 6,
+            border: "1px solid #e2e8f0",
+          }}
+        >
+          {[
+            { key: "height", label: "限高展开 (210px)" },
+            { key: "ast", label: "AST 摘要 (90字)" },
+            { key: "image", label: "16:9 裁剪" },
+          ].map((item) => (
+            <View
+              key={item.key}
+              onClick={() => {
+                setClampSubMode(item.key as any);
+                showToast(`已切换至: ${item.label}`);
+              }}
+              style={{
+                flex: 1,
+                textAlign: "center",
+                padding: "6px 0",
+                fontSize: 12,
+                borderRadius: 6,
+                fontWeight: clampSubMode === item.key ? "600" : "400",
+                backgroundColor: clampSubMode === item.key ? "#ffffff" : "transparent",
+                color: clampSubMode === item.key ? "#07c160" : "#64748b",
+                boxShadow: clampSubMode === item.key ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
+                cursor: "pointer",
+              }}
+            >
+              <Text>{item.label}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       {/* 4. 沉浸式富文本正文渲染区 */}
       <View
         style={{
@@ -505,10 +574,21 @@ export default function Index() {
           fontSize={fontSize}
           chunked={mode === "long_article"}
           chunkSize={15}
+          clampMaxHeight={mode === "clamp" && clampSubMode === "height" ? 210 : undefined}
+          expandText="展开全文"
+          collapseText="收起"
+          showCollapse={true}
+          truncateLength={mode === "clamp" && clampSubMode === "ast" ? 90 : undefined}
+          truncate={mode === "clamp" && clampSubMode === "ast" ? { maxLength: 90, ellipsis: " ... [阅读全文]" } : undefined}
+          imageCropRatio={mode === "clamp" && clampSubMode === "image" ? 16 / 9 : undefined}
+          imageCropMode={mode === "clamp" && clampSubMode === "image" ? "aspectFill" : undefined}
           components={{ "product-card": ProductCard }}
           imageSkeleton
           webviewPath="/pages/webview/index"
           tabBarList={["/pages/index/index", "/pages/about/index"]}
+          onExpandChange={(expanded) => {
+            showToast(expanded ? "已展开全文" : "已收起全文");
+          }}
           onLinkTap={(ctx) => {
             showToast(`点击链接: ${ctx.href}`);
             Taro.showToast({ title: `拦截到链接: ${ctx.href}`, icon: "none" });

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useMemo, useState, useEffect, useCallback } from 'react';
-import { View } from '@tarojs/components';
+import { View, Text } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import {
   parseRichContent,
@@ -45,6 +45,15 @@ export const OmniRichText: React.FC<OmniRichTextProps> = ({
   showImageError = false,
   imageLinkAction = 'link',
   theme,
+  truncate,
+  truncateLength,
+  clampMaxHeight,
+  expandText = '展开全文',
+  collapseText = '收起',
+  showCollapse = true,
+  onExpandChange,
+  imageCropMode,
+  imageCropRatio,
   onLinkTap,
   onImageTap,
   onLongPressText,
@@ -57,6 +66,12 @@ export const OmniRichText: React.FC<OmniRichTextProps> = ({
   const effectiveRootFontSize = rootFontSize ?? theme?.rootFontSize ?? WECHAT_REM_BASE;
   const effectiveBaseFontSize = Number(baseFontSize ?? theme?.baseFontSize ?? DEFAULT_BASE_FONT_SIZE);
   const effectiveContentBaseFontSize = Number(contentBaseFontSize ?? theme?.contentBaseFontSize ?? DEFAULT_CONTENT_BASE_FONT_SIZE);
+
+  const effectiveTruncate = useMemo(() => {
+    if (truncate) return truncate;
+    if (truncateLength !== undefined) return { maxLength: truncateLength };
+    return undefined;
+  }, [truncate, truncateLength]);
 
   // Extract custom tag names for sanitizer whitelist
   const customTags = useMemo(() => {
@@ -78,9 +93,10 @@ export const OmniRichText: React.FC<OmniRichTextProps> = ({
       contentBaseFontSize: effectiveContentBaseFontSize,
       fontSize,
       fontSizeResolver,
+      truncate: effectiveTruncate,
       cache
     });
-  }, [content, format, mode, maxDepth, extractStyles, customTags, effectiveRemScale, effectiveFontScale, effectiveRootFontSize, effectiveBaseFontSize, effectiveContentBaseFontSize, fontSize, fontSizeResolver, cache]);
+  }, [content, format, mode, maxDepth, extractStyles, customTags, effectiveRemScale, effectiveFontScale, effectiveRootFontSize, effectiveBaseFontSize, effectiveContentBaseFontSize, fontSize, fontSizeResolver, effectiveTruncate, cache]);
 
   // 2. Chunking calculation for progressive setData rendering
   const chunkedData = useMemo(() => {
@@ -233,12 +249,67 @@ export const OmniRichText: React.FC<OmniRichTextProps> = ({
     [onLongPressText]
   );
 
+  const numericClampMaxHeight = useMemo(() => {
+    if (clampMaxHeight === undefined || clampMaxHeight === null || clampMaxHeight === '') return null;
+    const num = typeof clampMaxHeight === 'number' ? clampMaxHeight : parseFloat(String(clampMaxHeight));
+    return isNaN(num) || num <= 0 ? null : num;
+  }, [clampMaxHeight]);
+
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [canClamp, setCanClamp] = useState(false);
+  const contentInnerId = useMemo(() => `omni_inner_${Math.random().toString(36).substring(2, 8)}`, []);
+
+  // Measure content height when clampMaxHeight is enabled
+  useEffect(() => {
+    if (!numericClampMaxHeight) {
+      setCanClamp(false);
+      return;
+    }
+
+    const checkHeight = () => {
+      try {
+        const query = Taro.createSelectorQuery();
+        query.select(`#${contentInnerId}`).boundingClientRect((res: any) => {
+          const rect = Array.isArray(res) ? res[0] : res;
+          if (rect && rect.height) {
+            setCanClamp(rect.height > numericClampMaxHeight);
+          }
+        }).exec();
+      } catch (e) {
+        setCanClamp(true);
+      }
+    };
+
+    const timer = setTimeout(checkHeight, 120);
+    return () => clearTimeout(timer);
+  }, [content, numericClampMaxHeight, contentInnerId, displayNodes]);
+
+  const handleToggleExpand = useCallback(() => {
+    const nextState = !isExpanded;
+    setIsExpanded(nextState);
+    onExpandChange?.(nextState);
+  }, [isExpanded, onExpandChange]);
+
   const resolvedFontSize = toRemFontSize(
     fontSize ?? theme?.fontSize,
     effectiveRootFontSize,
     effectiveRemScale,
     effectiveBaseFontSize
   );
+
+  const isClamped = Boolean(numericClampMaxHeight && canClamp && !isExpanded);
+  const effectiveBgColor = (style as any)?.backgroundColor || themeBgColor || '#ffffff';
+  const fadeGradient = `linear-gradient(to bottom, rgba(255,255,255,0) 0%, ${effectiveBgColor} 85%)`;
+
+  const clampedWrapperStyle: React.CSSProperties = isClamped
+    ? {
+        maxHeight: `${numericClampMaxHeight}px`,
+        overflow: 'hidden',
+        position: 'relative'
+      }
+    : {
+        position: 'relative'
+      };
 
   // Container style purely driven by user style prop with basic layout constraints
   const containerStyle: React.CSSProperties = {
@@ -248,6 +319,7 @@ export const OmniRichText: React.FC<OmniRichTextProps> = ({
     userSelect: selectable ? 'text' : 'none',
     WebkitUserSelect: selectable ? 'text' : 'none',
     backgroundColor: (style as any)?.backgroundColor,
+    position: 'relative',
     ...style
   };
 
@@ -256,24 +328,81 @@ export const OmniRichText: React.FC<OmniRichTextProps> = ({
       className={`omni-rich-text-container ${mode === 'wechat' ? 'omni-wechat-article' : ''} ${className}`}
       style={containerStyle}
     >
-      {displayNodes.map((node) => (
-        <NodeRenderer
-          key={node.id}
-          node={node}
-          components={components}
-          imageSkeleton={imageSkeleton}
-          showImageError={showImageError}
-          imageLinkAction={imageLinkAction}
-          theme={theme}
-          onLinkClick={handleLinkClick}
-          onImageClick={handleImageClick}
-          onLongPressText={handleLongPressText}
-          onMediaEvent={onMediaEvent}
-          onNodeEvent={onNodeEvent}
-          customRender={customRender}
-          selectable={selectable}
-        />
-      ))}
+      <View id={contentInnerId} className="omni-content-inner" style={clampedWrapperStyle}>
+        {displayNodes.map((node) => (
+          <NodeRenderer
+            key={node.id}
+            node={node}
+            components={components}
+            imageSkeleton={imageSkeleton}
+            showImageError={showImageError}
+            imageLinkAction={imageLinkAction}
+            theme={theme}
+            imageCropMode={imageCropMode}
+            imageCropRatio={imageCropRatio}
+            onLinkClick={handleLinkClick}
+            onImageClick={handleImageClick}
+            onLongPressText={handleLongPressText}
+            onMediaEvent={onMediaEvent}
+            onNodeEvent={onNodeEvent}
+            customRender={customRender}
+            selectable={selectable}
+          />
+        ))}
+
+        {/* Gradient Mask when clamped */}
+        {isClamped && (
+          <View
+            className="omni-clamp-mask"
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: '90px',
+              background: fadeGradient,
+              pointerEvents: 'none'
+            }}
+          />
+        )}
+      </View>
+
+      {/* Expand / Collapse Action Button */}
+      {numericClampMaxHeight && canClamp && (isClamped || showCollapse) && (
+        <View
+          className="omni-clamp-action-wrap"
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginTop: isClamped ? '-16px' : '12px',
+            position: 'relative',
+            zIndex: 5
+          }}
+        >
+          <View
+            className="omni-clamp-btn"
+            onClick={handleToggleExpand}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '6px 18px',
+              fontSize: '13px',
+              color: theme?.linkColor || '#07c160',
+              backgroundColor: '#ffffff',
+              border: '1px solid rgba(0, 0, 0, 0.08)',
+              borderRadius: '20px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+              cursor: 'pointer',
+              fontWeight: 500
+            }}
+          >
+            <Text>{isClamped ? expandText : collapseText}</Text>
+            <Text style={{ marginLeft: '4px', fontSize: '11px' }}>{isClamped ? '▼' : '▲'}</Text>
+          </View>
+        </View>
+      )}
 
       {/* Scroll-driven append sentinel */}
       {appendMode === 'scroll' && chunkedData && loadedChunkCount < chunkedData.remaining.length && (

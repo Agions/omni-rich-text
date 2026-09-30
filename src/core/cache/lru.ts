@@ -77,7 +77,8 @@ export function generateCacheKey(content: string, options?: Record<string, any>)
     options.baseFontSize ?? 15,
     options.contentBaseFontSize ?? 22,
     options.fontSize || '',
-    JSON.stringify(options.prune ?? true)
+    JSON.stringify(options.prune ?? true),
+    JSON.stringify(options.truncate || null)
   ].join('|');
 
   return `${contentHash}_${content.length}_${optKey}`;

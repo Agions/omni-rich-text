@@ -526,9 +526,16 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
           return false;
         }
 
+        const isCentered =
+          node.styleObj?.['justify-content'] === 'center' ||
+          node.styleObj?.['justify-content'] === 'space-around' ||
+          node.styleObj?.['justify-content'] === 'space-evenly' ||
+          node.styleStr?.includes('justify-content: center');
+
         if (elemChildren.length === 1) {
           const only = elemChildren[0];
-          if (!hasExplicitColWidth(only)) {
+          // For single child: only set width 100% if it is an image or block element that is NOT centered
+          if (!isCentered && !hasExplicitColWidth(only) && (hasDescendantImage(only) || only.name === 'img')) {
             only.styleObj = only.styleObj || {};
             only.styleObj['width'] = '100%';
             if (!only.styleObj['flex']) {
@@ -554,10 +561,17 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
             }
             for (const col of flexCols) {
               col.styleObj = col.styleObj || {};
-              if (!col.styleObj['flex']) {
-                col.styleObj['flex'] = '1 1 0%';
+              // Only inject flex: 1 1 0% if this is a single expanding content column (e.g. avatar + bio)
+              // and the container is NOT centered. Multiple flex columns or centered layouts keep natural sizing.
+              if (flexCols.length === 1 && !isCentered) {
+                if (!col.styleObj['flex']) {
+                  col.styleObj['flex'] = '1 1 0%';
+                }
+                col.styleObj['min-width'] = '0';
+              } else if (col.styleObj['flex'] === '0 0 auto') {
+                col.styleObj['flex'] = '0 1 auto';
+                col.styleObj['flex-shrink'] = '1';
               }
-              col.styleObj['min-width'] = '0';
               col.styleObj['box-sizing'] = col.styleObj['box-sizing'] || 'border-box';
               if (hasDescendantImage(col)) {
                 optimizeColumnDescendants(col, true);
@@ -589,8 +603,8 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
                 col.styleObj['box-sizing'] = col.styleObj['box-sizing'] || 'border-box';
                 col.styleStr = stringifyStyleObject(col.styleObj);
               }
-            } else {
-              // Pure multi-column layout (e.g. multi-image gallery row or multi-column text)
+            } else if (imgCols.length > 0) {
+              // ALL columns have images: Pure multi-image gallery row (e.g. 2-image or 3-image grid)
               const count = elemChildren.length;
               const percentWidth = `${parseFloat((100 / count).toFixed(2))}%`;
 
@@ -607,21 +621,54 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
                 if (!col.styleObj['width'] || !col.styleObj['width'].endsWith('%')) {
                   col.styleObj['width'] = percentWidth;
                 }
-                if (hasDescendantImage(col)) {
-                  if (col.name !== 'img') {
-                    optimizeColumnDescendants(col, true);
-                  } else if (isIconImage(col)) {
-                    col.extra = col.extra || {};
-                    col.extra.isIcon = true;
-                    col.styleObj['display'] = 'inline-block';
-                    col.styleObj['vertical-align'] = 'middle';
-                  } else {
-                    col.extra = col.extra || {};
-                    col.extra.isMultiImage = true;
-                    col.styleObj['display'] = 'block';
-                  }
+                if (col.name !== 'img') {
+                  optimizeColumnDescendants(col, true);
+                } else if (isIconImage(col)) {
+                  col.extra = col.extra || {};
+                  col.extra.isIcon = true;
+                  col.styleObj['display'] = 'inline-block';
+                  col.styleObj['vertical-align'] = 'middle';
+                } else {
+                  col.extra = col.extra || {};
+                  col.extra.isMultiImage = true;
+                  col.styleObj['display'] = 'block';
                 }
                 col.styleStr = stringifyStyleObject(col.styleObj);
+              }
+            } else {
+              // Pure text/inline layout with NO images (e.g. title | tags, buttons, badges)
+              // Only scale to equal percentage if all columns were authored with desktop grid widths (>= 300px)
+              const hasDesktopGridWidth = elemChildren.length > 1 && elemChildren.every((c) => {
+                const w = c.styleObj?.width;
+                if (!w) return false;
+                const px = parseLengthToPx(w);
+                return px !== undefined && px >= 300;
+              });
+
+              if (hasDesktopGridWidth) {
+                const count = elemChildren.length;
+                const percentWidth = `${parseFloat((100 / count).toFixed(2))}%`;
+                for (const col of elemChildren) {
+                  col.styleObj = col.styleObj || {};
+                  col.styleObj['min-width'] = '0';
+                  col.styleObj['max-width'] = '100%';
+                  col.styleObj['box-sizing'] = col.styleObj['box-sizing'] || 'border-box';
+                  col.styleObj['flex'] = '1 1 0%';
+                  col.styleObj['flex-shrink'] = '1';
+                  col.styleObj['width'] = percentWidth;
+                  col.styleStr = stringifyStyleObject(col.styleObj);
+                }
+              } else {
+                // Natural content-sized flex items: preserve natural width, do NOT force 33.33% or flex: 1!
+                for (const col of elemChildren) {
+                  col.styleObj = col.styleObj || {};
+                  col.styleObj['box-sizing'] = col.styleObj['box-sizing'] || 'border-box';
+                  if (col.styleObj['flex'] === '0 0 auto') {
+                    col.styleObj['flex'] = '0 1 auto';
+                    col.styleObj['flex-shrink'] = '1';
+                  }
+                  col.styleStr = stringifyStyleObject(col.styleObj);
+                }
               }
             }
           } else {

@@ -173,5 +173,49 @@ describe('Display Semantics & Flex Container Layout', () => {
       expect(spans[1].extra?.parentIsFlex).toBe(true);
       expect(spans[1].styleObj?.width).toBe('4.2667rem');
     });
+
+    it('preserves natural content sizing and prevents equal percentage width forcing for pure text/inline flex rows', () => {
+      const html = `
+        <section style="display: flex; justify-content: center; align-items: center;">
+          <section>羊毛亚麻</section>
+          <section>|</section>
+          <section>天然、干爽、混色</section>
+        </section>
+      `;
+      const { ast } = parseRichContent(html, { mode: 'wechat' });
+      const parent = ast[0];
+      const children = parent.children?.filter((c) => c.type === 'element') || [];
+
+      expect(children).toHaveLength(3);
+
+      // Must NOT be forced to 33.33% or flex: 1 1 0%
+      for (const child of children) {
+        expect(child.styleObj['width']).toBeUndefined();
+        expect(child.styleObj['flex']).not.toBe('1 1 0%');
+      }
+    });
+
+    it('does not force flex: 1 on multiple flexible items when centered with a fixed divider', () => {
+      const html = `
+        <section style="display: flex; justify-content: center; align-items: center;">
+          <section>羊毛亚麻</section>
+          <section style="width: 1px; height: 12px; background: #333;"></section>
+          <section>天然、干爽、混色</section>
+        </section>
+      `;
+      const { ast } = parseRichContent(html, { mode: 'wechat' });
+      const parent = ast[0];
+      const children = parent.children?.filter((c) => c.type === 'element') || [];
+
+      expect(children).toHaveLength(3);
+      // Fixed divider
+      expect(children[1].styleObj['width']).toBe('1px');
+      expect(children[1].styleObj['flex-shrink']).toBe('0');
+
+      // The 2 text items must NOT be forced to flex: 1 1 0% because the container is centered
+      expect(children[0].styleObj['flex']).not.toBe('1 1 0%');
+      expect(children[2].styleObj['flex']).not.toBe('1 1 0%');
+    });
   });
 });
+

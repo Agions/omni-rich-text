@@ -35,7 +35,7 @@ export function resetIdCounter(): void {
 export function decodeHtmlEntities(str: string): string {
   if (!str || !str.includes('&')) return str;
   return str
-    .replace(/&nbsp;/g, ' ')
+    .replace(/&nbsp;/g, '\u00A0')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
@@ -158,7 +158,7 @@ function isInsidePre(stack: ASTNode[]): boolean {
             text: decodedText
           });
         } else {
-          const isAllWhitespace = /^\s*$/.test(decodedText);
+          const isAllWhitespace = /^[ \t\r\n\f]*$/.test(decodedText);
           const isParentBlock = BLOCK_TAGS.has(currentParent.name || '');
 
           if (isAllWhitespace) {
@@ -170,14 +170,15 @@ function isInsidePre(stack: ASTNode[]): boolean {
               }
             }
           } else {
-            let text = decodedText.replace(/\s+/g, ' ');
+            // Only collapse consecutive ASCII whitespace, preserving visible non-breaking spaces (\u00A0)
+            let text = decodedText.replace(/[ \t\r\n\f]+/g, ' ');
 
             if (textChunk.startsWith('\n') || textChunk.startsWith('\r') || (isParentBlock && currentParent.children.length === 0)) {
-              text = text.trimStart();
+              text = text.replace(/^[ \t\r\n\f]+/, '');
             }
 
             if (textChunk.endsWith('\n') || textChunk.endsWith('\r')) {
-              text = text.trimEnd();
+              text = text.replace(/[ \t\r\n\f]+$/, '');
             }
 
             if (text.length > 0) {
@@ -221,7 +222,7 @@ function isInsidePre(stack: ASTNode[]): boolean {
         if (closingNode.children && closingNode.children.length > 0 && !isInsidePre(stack)) {
           const lastChild = closingNode.children[closingNode.children.length - 1];
           if (lastChild.type === 'text' && lastChild.text && BLOCK_TAGS.has(closingNode.name || '')) {
-            lastChild.text = lastChild.text.trimEnd();
+            lastChild.text = lastChild.text.replace(/[ \t\r\n\f]+$/, '');
             if (lastChild.text.length === 0) {
               closingNode.children.pop();
             }
@@ -317,7 +318,7 @@ function isInsidePre(stack: ASTNode[]): boolean {
   // Trailing text after last tag
   if (lastIndex < cleanHtml.length) {
     const trailingText = decodeHtmlEntities(cleanHtml.slice(lastIndex));
-    if (trailingText.length > 0 && !/^\s*$/.test(trailingText)) {
+    if (trailingText.length > 0 && !/^[ \t\r\n\f]*$/.test(trailingText)) {
       root.children = root.children || [];
       root.children.push({
         id: generateNodeId(),
@@ -325,7 +326,7 @@ function isInsidePre(stack: ASTNode[]): boolean {
         attrs: {},
         styleStr: '',
         styleObj: {},
-        text: trailingText.replace(/\s+/g, ' ').trim()
+        text: trailingText.replace(/[ \t\r\n\f]+/g, ' ').replace(/^[ \t\r\n\f]+|[ \t\r\n\f]+$/g, '')
       });
     }
   }
@@ -511,6 +512,10 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
             if (px !== undefined && px >= 300) return false;
             return true;
           }
+          // Explicit non-shrinking flex specification authored in template
+          if (col.styleObj?.flex === '0 0 auto' || col.styleObj?.['flex-shrink'] === '0') {
+            return true;
+          }
           // Check if column wraps a fixed-size avatar/icon/cover (<= 240px)
           if (col.children && col.children.length === 1) {
             const onlyChild = col.children[0];
@@ -556,7 +561,7 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
             // Asymmetric layout with authored fixed columns (e.g. 56px avatar + bio text)
             for (const col of fixedCols) {
               col.styleObj = col.styleObj || {};
-              col.styleObj['flex-shrink'] = '0';
+              col.styleObj['flex-shrink'] = col.styleObj['flex-shrink'] || '0';
               col.styleStr = stringifyStyleObject(col.styleObj);
             }
             for (const col of flexCols) {
@@ -569,8 +574,7 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
                 }
                 col.styleObj['min-width'] = '0';
               } else if (col.styleObj['flex'] === '0 0 auto') {
-                col.styleObj['flex'] = '0 1 auto';
-                col.styleObj['flex-shrink'] = '1';
+                col.styleObj['flex-shrink'] = '0';
               }
               col.styleObj['box-sizing'] = col.styleObj['box-sizing'] || 'border-box';
               if (hasDescendantImage(col)) {
@@ -598,8 +602,12 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
               }
               for (const col of textCols) {
                 col.styleObj = col.styleObj || {};
-                col.styleObj['flex'] = '1 1 0%';
-                col.styleObj['min-width'] = '0';
+                if (!col.styleObj['flex']) {
+                  col.styleObj['flex'] = '1 1 0%';
+                  col.styleObj['min-width'] = '0';
+                } else if (col.styleObj['flex'] === '0 0 auto') {
+                  col.styleObj['flex-shrink'] = '0';
+                }
                 col.styleObj['box-sizing'] = col.styleObj['box-sizing'] || 'border-box';
                 col.styleStr = stringifyStyleObject(col.styleObj);
               }
@@ -664,8 +672,7 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
                   col.styleObj = col.styleObj || {};
                   col.styleObj['box-sizing'] = col.styleObj['box-sizing'] || 'border-box';
                   if (col.styleObj['flex'] === '0 0 auto') {
-                    col.styleObj['flex'] = '0 1 auto';
-                    col.styleObj['flex-shrink'] = '1';
+                    col.styleObj['flex-shrink'] = '0';
                   }
                   col.styleStr = stringifyStyleObject(col.styleObj);
                 }

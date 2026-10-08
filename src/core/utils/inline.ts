@@ -116,3 +116,21 @@ export function isAllInline(node: ASTNode): boolean {
   if (!node.children || node.children.length === 0) return true;
   return node.children.every(isAllInline);
 }
+
+/**
+ * Checks if a flex item actually grows to take up extra space (flex-grow > 0 or flex: 1...).
+ * Items with flex: 0 0 auto or flex-grow: 0 do not grow and should not be forced with min-width: 0.
+ */
+export function hasActualFlexGrow(styleObj?: Record<string, any>): boolean {
+  if (!styleObj) return false;
+  if (styleObj.flexGrow && parseFloat(String(styleObj.flexGrow)) > 0) return true;
+  if (styleObj['flex-grow'] && parseFloat(String(styleObj['flex-grow'])) > 0) return true;
+  if (styleObj.flex) {
+    const s = String(styleObj.flex).trim();
+    const parts = s.split(/\s+/);
+    const grow = parseFloat(parts[0]);
+    if (!isNaN(grow) && grow > 0) return true;
+  }
+  return false;
+}
+

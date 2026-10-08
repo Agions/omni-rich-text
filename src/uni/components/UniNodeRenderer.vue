@@ -500,7 +500,7 @@
         boxSizing: 'border-box',
         display: node.styleObj?.display || (isParentFlex ? 'block' : (INLINE_TAGS.has(node.name) ? 'inline-block' : 'block'))
       },
-      (isCurrentFlex || isParentFlex) ? { minWidth: '0' } : {},
+      (isCurrentFlex || (isParentFlex && hasActualFlexGrow(node.styleObj))) ? { minWidth: '0' } : {},
       node.styleObj
     ]"
     @tap="onNodeTap"
@@ -539,7 +539,8 @@ import {
   hasForeignObject,
   splitSvgForeignObject,
   extractSvgViewBoxRatio,
-  serializeSvgToXml
+  serializeSvgToXml,
+  hasActualFlexGrow
 } from '../../core';
 
 defineOptions({

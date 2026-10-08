@@ -12,7 +12,8 @@ import {
   getDefaultDisplay,
   extractSvgViewBoxRatio,
   hasForeignObject,
-  splitSvgForeignObject
+  splitSvgForeignObject,
+  hasActualFlexGrow
 } from '../../core';
 
 export interface NodeRendererProps {
@@ -1011,11 +1012,8 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
     ? 'block'
     : (INLINE_TAGS.has(node.name || '') ? 'inline-block' : 'block');
 
-  const hasFlexGrow =
-    node.styleObj?.flex ||
-    node.styleObj?.flexGrow ||
-    node.styleObj?.['flex-grow'];
-  const needsMinWidthZero = isFlex || (isParentFlex && !!hasFlexGrow);
+  const growingItem = hasActualFlexGrow(node.styleObj);
+  const needsMinWidthZero = isFlex || (isParentFlex && growingItem);
 
   return (
     <View

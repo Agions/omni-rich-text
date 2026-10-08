@@ -216,6 +216,32 @@ describe('Display Semantics & Flex Container Layout', () => {
       expect(children[0].styleObj['flex']).not.toBe('1 1 0%');
       expect(children[2].styleObj['flex']).not.toBe('1 1 0%');
     });
+
+    it('strictly preserves authored flex: 0 0 auto and flex-shrink: 0 on template cards without converting to flex-shrink: 1', () => {
+      const html = `
+        <section style="display: flex; flex-flow: row; justify-content: flex-start;">
+          <section style="display: block; flex: 0 0 auto;">超长互拼 告别大刀弯</section>
+          <section style="display: block; flex: 0 0 auto; text-align: right;">&nbsp; &nbsp; &nbsp; &nbsp;应用场景 户外帐篷</section>
+        </section>
+      `;
+      const { ast } = parseRichContent(html, { mode: 'wechat' });
+      const parent = ast[0];
+      const children = parent.children?.filter((c) => c.type === 'element') || [];
+
+      expect(children).toHaveLength(2);
+      expect(children[0].styleObj['flex']).toBe('0 0 auto');
+      expect(children[0].styleObj['flex-shrink']).toBe('0');
+
+      expect(children[1].styleObj['flex']).toBe('0 0 auto');
+      expect(children[1].styleObj['flex-shrink']).toBe('0');
+
+      // Check that non-breaking spaces are preserved in text
+      const textChild = children[1].children?.[0];
+      expect(textChild?.type).toBe('text');
+      expect(textChild?.text).toContain('\u00A0');
+      expect((textChild?.text?.match(/\u00A0/g) || []).length).toBe(4);
+    });
   });
 });
+
 

@@ -31,6 +31,8 @@ export * from './plugins/markdown';
 export * from './plugins/prism';
 export * from './cache/lru';
 export * from './utils/image';
+export * from './stream/markdown-healer';
+export * from './stream/stream-parser';
 
 import { LRUCache, generateCacheKey } from './cache/lru';
 

@@ -1,6 +1,12 @@
-import { ASTNode, LinkTapContext, MediaEventPayload, ThemeConfig } from '../../core';
+import {
+  ASTNode,
+  LinkTapContext,
+  MediaEventPayload,
+  ThemeConfig,
+  TruncateOptions
+} from '../../core';
 
-export type { ThemeConfig };
+export type { ThemeConfig, TruncateOptions, ASTNode, LinkTapContext, MediaEventPayload };
 
 export interface UniRichTextProps {
   /** HTML or Markdown content */
@@ -51,7 +57,46 @@ export interface UniRichTextProps {
   imageSkeleton?: boolean;
   /** Whether to show fallback placeholder on image load failure. Default: false (hides failed images). */
   showImageError?: boolean;
+  /** Safe AST truncation options for generating excerpts and clamping node size */
+  truncate?: TruncateOptions;
+  /** Quick alias for truncate.maxLength (number of characters) */
+  truncateLength?: number;
+  /** Max height threshold for visual container clamping with expand/collapse (e.g. 240 or '240px') */
+  clampMaxHeight?: number | string;
+  /** Text for expand button. Defaults to '展开全文' */
+  expandText?: string;
+  /** Text for collapse button. Defaults to '收起' */
+  collapseText?: string;
+  /** Whether to show collapse button after expanding. Defaults to true */
+  showCollapse?: boolean;
+  /** Callback emitted when expanded state changes */
+  onExpandChange?: (expanded: boolean) => void;
+  /** Global image crop mode override: 'widthFix' | 'aspectFill' | 'aspectFit' | 'auto' */
+  imageCropMode?: 'widthFix' | 'aspectFill' | 'aspectFit' | 'auto';
+  /** Global image crop aspect ratio (e.g. 16/9, 4/3, 1) */
+  imageCropRatio?: number;
+  /** Custom node renderer override (Vue component or render function) */
+  customRender?: (node: ASTNode) => any;
+  /** Custom components map: tag name -> Vue Component */
+  components?: Record<string, any>;
+  /** Custom interceptor for link clicks */
+  onLinkTap?: (ctx: LinkTapContext) => boolean | void | Promise<boolean | void>;
+  /** Event emitted on image tap */
+  onImageTap?: (payload: { src: string; index: number }) => void;
+  /** Event emitted on text long-press */
+  onLongPressText?: (text: string, node: ASTNode) => void;
+  /** Event emitted on video/audio play, pause, end, error */
+  onMediaEvent?: (payload: MediaEventPayload) => void;
+  /** Generic node event hook for custom events */
+  onNodeEvent?: (eventType: string, node: ASTNode, rawEvent?: any) => void;
+  /** Enable AI streaming mode with incremental syntax healing. Default: false */
+  streaming?: boolean;
+  /** Whether to show blinking typewriter cursor at tail during streaming. Default: true */
+  showCursor?: boolean;
+  /** Custom cursor character (e.g. '▍', '|', '█'). Default: '▍' */
+  cursorChar?: string;
 }
 
 export type OmniRichTextProps = UniRichTextProps;
 export type UniversalRichTextProps = UniRichTextProps;
+

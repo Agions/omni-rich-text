@@ -15,12 +15,38 @@
 
 .omni-svg { max-width: 100%; vertical-align: middle; }
 
+/* ─── SVG Carousel & Layout ─── */
+.omni-svg-carousel-container {
+  width: 100%;
+  border-radius: 16rpx;
+  overflow: hidden;
+  position: relative;
+}
+.omni-svg-swiper {
+  width: 100%;
+}
+.omni-svg-layout-wrap {
+  position: relative;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* ─── Code Block ─── */
+.omni-pre-container {
+  margin: 24rpx 0;
+  border-radius: 16rpx;
+  overflow: hidden;
+  border: 1rpx solid rgba(0, 0, 0, 0.08);
+}
+.omni-pre-header {
+  box-sizing: border-box;
+}
+.omni-pre-scroll { width: 100%; overflow: scroll; box-sizing: border-box; }
+.omni-pre { box-sizing: border-box; }
+
 .omni-video { width: 100%; }
 
 .omni-hr { height: 1rpx; }
-
-.omni-pre-scroll { width: 100%; overflow: scroll; box-sizing: border-box; }
-.omni-pre { box-sizing: border-box; }
 
 .omni-blockquote { box-sizing: border-box; }
 

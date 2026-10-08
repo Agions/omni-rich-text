@@ -2,25 +2,169 @@
   <!-- 0. Skip WeChat-specific ignored tags -->
   <template v-if="node.extra && node.extra.wxIgnored" />
 
-  <!-- 1. Text leaf node -->
+  <!-- 1. Custom Render Hook (customRender prop) -->
+  <text
+    v-else-if="customResult && (typeof customResult === 'string' || typeof customResult === 'number')"
+    class="omni-text"
+  >{{ customResult }}</text>
+  <component
+    :is="customResult"
+    v-else-if="customResult"
+    :node="node"
+    v-bind="forwardProps"
+    v-bind="forwardEvents"
+  />
+
+  <!-- 1.1 Custom Components Mapping (components prop) -->
+  <component
+    :is="components[node.name]"
+    v-else-if="components && node.name && components[node.name]"
+    :node="node"
+    :attrs="node.attrs || {}"
+    @node-event="(t, n, e) => emit('nodeEvent', t, n, e)"
+    @link-tap="(href, n) => emit('linkTap', href, n)"
+    @image-tap="(src, idx, n) => emit('imageTap', src, idx, n)"
+  >
+    <uni-node-renderer
+      v-for="(child, idx) in node.children"
+      :key="child.id"
+      :node="child"
+      :index-in-list="idx"
+      :parent-tag="node.name"
+      v-bind="forwardProps"
+      v-bind="forwardEvents"
+    />
+  </component>
+
+  <!-- 2. Leaf text node -->
   <text
     v-else-if="node.type === 'text'"
     class="omni-text"
-    :style="node.styleObj"
+    :style="[
+      { wordBreak: 'break-word' },
+      node.styleObj
+    ]"
     :user-select="selectable"
     @longpress="onLongPress"
   >{{ node.text }}</text>
 
-  <!-- 2. SVG -> data URI image -->
+  <!-- 3.0 SVG Carousel / Slider (Native Swiper mapping) -->
+  <view
+    v-else-if="node.extra?.isSvgCarousel && node.extra.carouselSlides && node.extra.carouselSlides.length > 0"
+    class="omni-svg-carousel-container"
+    :style="[
+      {
+        width: '100%',
+        margin: '12px 0',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        position: 'relative'
+      },
+      node.styleObj
+    ]"
+  >
+    <swiper
+      class="omni-svg-swiper"
+      :indicator-dots="node.extra.carouselSlides.length > 1"
+      indicator-color="rgba(255, 255, 255, 0.45)"
+      indicator-active-color="#ffffff"
+      :autoplay="false"
+      :circular="node.extra.carouselSlides.length > 1"
+      :style="{
+        width: '100%',
+        height: '240px',
+        aspectRatio: String(node.extra.aspectRatio || extractSvgViewBoxRatio(node) || 16 / 9)
+      }"
+    >
+      <swiper-item
+        v-for="(slide, sIdx) in node.extra.carouselSlides"
+        :key="sIdx"
+        style="width: 100%; height: 100%;"
+      >
+        <view
+          style="width: 100%; height: 100%; position: relative;"
+          @tap.stop="handleSlideTap(slide, node)"
+        >
+          <image
+            :src="slide.src"
+            mode="aspectFill"
+            style="width: 100%; height: 100%; display: block;"
+          />
+          <view
+            v-if="slide.title"
+            style="position: absolute; bottom: 0; left: 0; right: 0; padding: 6px 10px; background: linear-gradient(transparent, rgba(0,0,0,0.65)); color: #ffffff; font-size: 12px;"
+          >
+            <text>{{ slide.title }}</text>
+          </view>
+        </view>
+      </swiper-item>
+    </swiper>
+  </view>
+
+  <!-- 3.1 SVG with ForeignObject (Dual-layer decoupling) -->
+  <view
+    v-else-if="node.name === 'svg' && isSvgForeign && svgForeignData"
+    class="omni-svg-layout-wrap"
+    :style="[
+      {
+        position: 'relative',
+        display: node.styleObj?.display || 'block',
+        width: svgForeignData.rawW,
+        maxWidth: '100%',
+        boxSizing: 'border-box'
+      },
+      svgForeignData.rawH ? { height: svgForeignData.rawH } : {},
+      (svgForeignData.vbRatio && !svgForeignData.rawH) ? { aspectRatio: String(svgForeignData.vbRatio) } : {},
+      node.styleObj
+    ]"
+  >
+    <image
+      v-if="svgForeignData.bgDataUri"
+      class="omni-svg-layout-bg"
+      :src="svgForeignData.bgDataUri"
+      :mode="svgForeignData.rawW && svgForeignData.rawH ? 'scaleToFill' : 'widthFix'"
+      style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"
+    />
+    <view
+      class="omni-svg-layout-content"
+      style="position: relative; z-index: 1; width: 100%; height: 100%; box-sizing: border-box;"
+    >
+      <template v-for="fo in svgForeignData.foreignObjectNodes" :key="fo.id">
+        <uni-node-renderer
+          v-for="(child, idx) in fo.children"
+          :key="child.id"
+          :node="child"
+          :index-in-list="idx"
+          parent-tag="foreignobject"
+          v-bind="forwardProps"
+          v-bind="forwardEvents"
+        />
+      </template>
+    </view>
+  </view>
+
+  <!-- 3.2 Standard Vector SVG -->
   <image
     v-else-if="node.name === 'svg'"
     class="omni-svg"
-    :src="node.extra && node.extra.svgDataUri"
-    mode="widthFix"
-    :style="node.styleObj"
+    :src="standardSvgUri"
+    :mode="standardSvgWidth && standardSvgHeight ? 'scaleToFill' : 'widthFix'"
+    :style="[
+      {
+        display: 'inline-block',
+        verticalAlign: 'middle',
+        flexShrink: 0,
+        maxWidth: '100%'
+      },
+      standardSvgWidth ? { width: standardSvgWidth } : {},
+      standardSvgHeight ? { height: standardSvgHeight } : {},
+      (standardSvgVbRatio && !standardSvgHeight) ? { aspectRatio: String(standardSvgVbRatio) } : {},
+      node.styleObj
+    ]"
+    @tap="emit('nodeEvent', 'tap', node)"
   />
 
-  <!-- 3. Inline formatting tags (span, strong, em, etc.) -->
+  <!-- 4. Inline formatting tags (span, strong, em, etc.) -->
   <text
     v-else-if="!isParentFlex && INLINE_TAGS.has(node.name) && isAllInline(node)"
     :class="['omni-inline', `omni-${node.name}`]"
@@ -31,17 +175,14 @@
       v-for="child in node.children"
       :key="child.id"
       :node="child"
-      :theme="theme"
-      :selectable="selectable"
-      :image-skeleton="imageSkeleton"
-      :show-image-error="showImageError"
       :parent-tag="node.name"
       :parent-is-flex="false"
+      v-bind="forwardProps"
       v-bind="forwardEvents"
     />
   </text>
 
-  <!-- 4. Anchor <a> -->
+  <!-- 5. Anchor <a> -->
   <view
     v-else-if="node.name === 'a'"
     class="omni-link"
@@ -52,18 +193,14 @@
       v-for="child in node.children"
       :key="child.id"
       :node="child"
-      :theme="theme"
-      :selectable="selectable"
-      :image-skeleton="imageSkeleton"
-      :show-image-error="showImageError"
-      :image-link-action="imageLinkAction"
       :parent-link-href="node.attrs?.href || ''"
       parent-tag="a"
+      v-bind="forwardProps"
       v-bind="forwardEvents"
     />
   </view>
 
-  <!-- 5. Image <img> (Icon vs Regular Image) -->
+  <!-- 6. Image <img> (Icon vs Regular Image) -->
   <view
     v-else-if="node.name === 'img' && node.extra?.isIcon && (!errorImages.has(node.attrs?.src || node.attrs?.['data-src'] || '') || showImageError)"
     class="omni-image-icon-wrap"
@@ -106,7 +243,7 @@
       v-else-if="!errorImages.has(node.attrs?.src || node.attrs?.['data-src'] || '')"
       class="omni-image"
       :src="node.attrs?.src || node.attrs?.['data-src']"
-      :mode="node.attrs?.mode || 'widthFix'"
+      :mode="effectiveImgMode"
       :lazy-load="node.attrs?.['lazy-load'] !== 'false'"
       :style="imageStyle(node)"
       @load="onImageLoad(node)"
@@ -114,7 +251,7 @@
     />
   </view>
 
-  <!-- 6. Video <video> -->
+  <!-- 7. Video <video> -->
   <video
     v-else-if="node.name === 'video'"
     class="omni-video"
@@ -131,39 +268,98 @@
     @error="emit('mediaEvent', { type: 'error', src: node.attrs.src, node })"
   />
 
-  <!-- 7. Horizontal Rule <hr> -->
+  <!-- 8. Horizontal Rule <hr> -->
   <view
     v-else-if="node.name === 'hr'"
     class="omni-hr"
     :style="[{ backgroundColor: theme.hrColor }, node.styleObj]"
   />
 
-  <!-- 8. Pre/Code block <pre> -->
-  <scroll-view
+  <!-- 9. Pre/Code block <pre> with Header Bar & SVG Dual-Mode -->
+  <view
     v-else-if="node.name === 'pre'"
-    class="omni-pre-scroll"
-    scroll-x
-    :style="[{ backgroundColor: theme.codeBgColor }, node.styleObj]"
+    class="omni-pre-container"
+    :style="[
+      {
+        margin: '12px 0',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        border: '1px solid rgba(0, 0, 0, 0.08)',
+        backgroundColor: theme.codeBgColor || '#282c34'
+      },
+      node.styleObj
+    ]"
   >
     <view
-      class="omni-pre"
-      :style="[{ color: theme.codeTextColor, minWidth: '100%', boxSizing: 'border-box' }, node.styleObj]"
+      class="omni-pre-header"
+      style="display: flex; flex-direction: row; justify-content: space-between; align-items: center; padding: 6px 12px; background-color: rgba(0, 0, 0, 0.25); border-bottom: 1px solid rgba(255, 255, 255, 0.06);"
     >
-      <uni-node-renderer
-        v-for="child in node.children"
-        :key="child.id"
-        :node="child"
-        :theme="theme"
-        :selectable="selectable"
-        :image-skeleton="imageSkeleton"
-      :show-image-error="showImageError"
-        parent-tag="pre"
-        v-bind="forwardEvents"
+      <text style="font-size: 11px; color: #abb2bf; font-weight: bold;">
+        {{ codeLangLabel }}
+      </text>
+      <view style="display: flex; flex-direction: row; align-items: center; gap: 6px;">
+        <view
+          v-if="isSvgCodeBlock && svgCodeDataUri"
+          style="font-size: 11px; padding: 2px 8px; border-radius: 4px; color: #ffffff; cursor: pointer;"
+          :style="{ backgroundColor: showSvgPreview ? '#07c160' : 'rgba(255, 255, 255, 0.15)' }"
+          @tap.stop="showSvgPreview = !showSvgPreview"
+        >
+          <text>{{ showSvgPreview ? '💻 源码' : '👁️ 预览' }}</text>
+        </view>
+        <view
+          style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background-color: rgba(255, 255, 255, 0.15); color: #ffffff; cursor: pointer;"
+          @tap.stop="handleCopyCode"
+        >
+          <text>📋 复制</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Body: SVG Visual Preview or Code Scroll -->
+    <view
+      v-if="showSvgPreview && svgCodeDataUri"
+      style="padding: 16px; background-color: #ffffff; display: flex; justify-content: center; align-items: center;"
+    >
+      <image
+        :src="svgCodeDataUri"
+        mode="widthFix"
+        style="max-width: 100%; display: block;"
       />
     </view>
-  </scroll-view>
+    <scroll-view
+      v-else
+      class="omni-pre-scroll"
+      scroll-x
+      style="width: 100%; box-sizing: border-box;"
+      :style="{ backgroundColor: theme.codeBgColor || '#282c34' }"
+    >
+      <view
+        class="omni-pre"
+        :style="[
+          {
+            color: theme.codeTextColor || '#abb2bf',
+            minWidth: '100%',
+            padding: '12px 14px',
+            boxSizing: 'border-box',
+            fontFamily: 'Consolas, Monaco, monospace',
+            fontSize: '13px'
+          },
+          node.styleObj
+        ]"
+      >
+        <uni-node-renderer
+          v-for="child in node.children"
+          :key="child.id"
+          :node="child"
+          parent-tag="pre"
+          v-bind="forwardProps"
+          v-bind="forwardEvents"
+        />
+      </view>
+    </scroll-view>
+  </view>
 
-  <!-- 9. Blockquote -->
+  <!-- 10. Blockquote -->
   <view
     v-else-if="node.name === 'blockquote'"
     class="omni-blockquote"
@@ -177,16 +373,13 @@
       v-for="child in node.children"
       :key="child.id"
       :node="child"
-      :theme="theme"
-      :selectable="selectable"
-      :image-skeleton="imageSkeleton"
-      :show-image-error="showImageError"
       parent-tag="blockquote"
+      v-bind="forwardProps"
       v-bind="forwardEvents"
     />
   </view>
 
-  <!-- 10. Table with horizontal scroll -->
+  <!-- 11. Table with horizontal scroll -->
   <scroll-view
     v-else-if="node.name === 'table'"
     class="omni-table-scroll"
@@ -198,11 +391,8 @@
         v-for="child in node.children"
         :key="child.id"
         :node="child"
-        :theme="theme"
-        :selectable="selectable"
-        :image-skeleton="imageSkeleton"
-      :show-image-error="showImageError"
         parent-tag="table"
+        v-bind="forwardProps"
         v-bind="forwardEvents"
       />
     </view>
@@ -218,11 +408,8 @@
       v-for="child in node.children"
       :key="child.id"
       :node="child"
-      :theme="theme"
-      :selectable="selectable"
-      :image-skeleton="imageSkeleton"
-      :show-image-error="showImageError"
       parent-tag="tr"
+      v-bind="forwardProps"
       v-bind="forwardEvents"
     />
   </view>
@@ -241,16 +428,13 @@
       v-for="child in node.children"
       :key="child.id"
       :node="child"
-      :theme="theme"
-      :selectable="selectable"
-      :image-skeleton="imageSkeleton"
-      :show-image-error="showImageError"
       :parent-tag="node.name"
+      v-bind="forwardProps"
       v-bind="forwardEvents"
     />
   </view>
 
-  <!-- List item <li> -->
+  <!-- 12. List item <li> -->
   <view
     v-else-if="node.name === 'li'"
     class="omni-li"
@@ -264,20 +448,17 @@
         v-for="child in node.children"
         :key="child.id"
         :node="child"
-        :theme="theme"
-        :selectable="selectable"
-        :image-skeleton="imageSkeleton"
-      :show-image-error="showImageError"
         parent-tag="li"
+        v-bind="forwardProps"
         v-bind="forwardEvents"
       />
     </view>
   </view>
 
-  <!-- Line break <br> -->
+  <!-- 13. Line break <br> -->
   <text v-else-if="node.name === 'br'" class="omni-br">{{ '\n' }}</text>
 
-  <!-- Generic block / inline element (div, p, section, span, ul, ol, h1-h6, figure, etc.) -->
+  <!-- 14. Generic block / inline element (div, p, section, span, ul, ol, h1-h6, figure, etc.) -->
   <view
     v-else
     :class="['omni-element', `omni-${node.name}`]"
@@ -300,11 +481,7 @@
       :parent-tag="node.name"
       :parent-is-flex="isCurrentFlex"
       :parent-link-href="parentLinkHref"
-      :image-link-action="imageLinkAction"
-      :theme="theme"
-      :selectable="selectable"
-      :image-skeleton="imageSkeleton"
-      :show-image-error="showImageError"
+      v-bind="forwardProps"
       v-bind="forwardEvents"
     />
   </view>
@@ -321,7 +498,17 @@ export default {
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { ASTNode, ThemeConfig, INLINE_TAGS, isAllInline, isFlexDisplay } from '../../core';
+import {
+  ASTNode,
+  ThemeConfig,
+  INLINE_TAGS,
+  isAllInline,
+  isFlexDisplay,
+  hasForeignObject,
+  splitSvgForeignObject,
+  extractSvgViewBoxRatio,
+  serializeSvgToXml
+} from '../../core';
 
 defineOptions({
   name: 'UniNodeRenderer',
@@ -342,6 +529,10 @@ const props = withDefaults(
     parentTag?: string;
     parentIsFlex?: boolean;
     parentLinkHref?: string;
+    customRender?: (node: ASTNode) => any;
+    components?: Record<string, any>;
+    imageCropMode?: 'widthFix' | 'aspectFill' | 'aspectFit' | 'auto';
+    imageCropRatio?: number;
   }>(),
   {
     theme: () => ({}),
@@ -352,7 +543,11 @@ const props = withDefaults(
     indexInList: 0,
     parentTag: '',
     parentIsFlex: false,
-    parentLinkHref: ''
+    parentLinkHref: '',
+    components: undefined,
+    customRender: undefined,
+    imageCropMode: undefined,
+    imageCropRatio: undefined
   }
 );
 
@@ -364,21 +559,95 @@ const emit = defineEmits<{
   (e: 'imageTap', src: string, index: number, node: ASTNode): void;
   (e: 'longPressText', text: string, node: ASTNode): void;
   (e: 'mediaEvent', payload: { type: string; src?: string; node: ASTNode }): void;
-  (e: 'nodeEvent', eventType: string, node: ASTNode): void;
+  (e: 'nodeEvent', eventType: string, node: ASTNode, rawEvent?: any): void;
 }>();
 
-// Forward all events up the tree
+// Forward all props down the recursive tree
+const forwardProps = computed(() => ({
+  theme: props.theme,
+  selectable: props.selectable,
+  imageSkeleton: props.imageSkeleton,
+  showImageError: props.showImageError,
+  imageLinkAction: props.imageLinkAction,
+  customRender: props.customRender,
+  components: props.components,
+  imageCropMode: props.imageCropMode,
+  imageCropRatio: props.imageCropRatio
+}));
+
+// Forward all events up the recursive tree
 const forwardEvents = computed(() => ({
   onLinkTap: (href: string, n: ASTNode) => emit('linkTap', href, n),
   onImageTap: (src: string, idx: number, n: ASTNode) => emit('imageTap', src, idx, n),
   onLongPressText: (text: string, n: ASTNode) => emit('longPressText', text, n),
   onMediaEvent: (payload: any) => emit('mediaEvent', payload),
-  onNodeEvent: (t: string, n: ASTNode) => emit('nodeEvent', t, n)
+  onNodeEvent: (t: string, n: ASTNode, e?: any) => emit('nodeEvent', t, n, e)
 }));
 
-// ---- Image skeleton state ----
+// ---- Custom Render Hook ----
+const customResult = computed(() => {
+  if (!props.customRender) return null;
+  return props.customRender(props.node);
+});
+
+// ---- Image sizing & skeleton state ----
 const loadedImages = ref<Set<string>>(new Set());
 const errorImages = ref<Set<string>>(new Set());
+
+const rawHeight = computed(() => {
+  const sH = props.node.styleObj?.height;
+  if (sH && sH !== 'auto') return sH;
+  const aH = props.node.attrs?.height;
+  if (aH && aH !== 'auto') {
+    return isNaN(Number(aH)) ? aH : `${aH}px`;
+  }
+  return undefined;
+});
+
+const hasExplicitHeight = computed(() => !!rawHeight.value);
+
+const attrWidth = computed(() => {
+  const aW = props.node.attrs?.width;
+  if (aW && aW !== 'auto') {
+    return isNaN(Number(aW)) ? aW : `${aW}px`;
+  }
+  return undefined;
+});
+
+const hasExplicitWidth = computed(() => {
+  return (!!props.node.styleObj?.width && props.node.styleObj.width !== '100%' && props.node.styleObj.width !== 'auto') || !!attrWidth.value;
+});
+
+const rawWidth = computed(() => {
+  if (props.node.styleObj?.width && props.node.styleObj.width !== 'auto') {
+    return props.node.styleObj.width;
+  }
+  return attrWidth.value;
+});
+
+const isFullWidth = computed(() => {
+  return (rawWidth.value === '100%' || rawWidth.value?.startsWith('100%')) || (!hasExplicitWidth.value && !hasExplicitHeight.value);
+});
+
+const effectiveImgMode = computed(() => {
+  return (props.node.attrs?.mode as any) ||
+    (props.imageCropMode && props.imageCropMode !== 'auto' ? props.imageCropMode : null) ||
+    (props.imageCropRatio ? 'aspectFill' : null) ||
+    (hasExplicitWidth.value && hasExplicitHeight.value ? 'aspectFill' : null) ||
+    (hasExplicitHeight.value && !hasExplicitWidth.value ? 'heightFix' : 'widthFix');
+});
+
+const effectiveImgHeight = computed(() => {
+  if (props.imageCropRatio) return '100%';
+  if (effectiveImgMode.value === 'widthFix') return undefined;
+  return rawHeight.value;
+});
+
+const effectiveImgWidth = computed(() => {
+  if (effectiveImgMode.value === 'heightFix') return 'auto';
+  if (isFullWidth.value) return '100%';
+  return rawWidth.value || 'auto';
+});
 
 function imageWrapStyle(node: ASTNode): Record<string, any> {
   const src = node.attrs?.src || node.attrs?.['data-src'] || '';
@@ -387,18 +656,16 @@ function imageWrapStyle(node: ASTNode): Record<string, any> {
   const dataRatio = node.extra?.dataRatio;
   const placeholderHeight = node.extra?.placeholderHeight;
   const aspectRatio = node.extra?.aspectRatio;
-
-  const rawWidth = node.styleObj?.width;
-  const isFullWidth = !rawWidth || rawWidth === '100%' || rawWidth.startsWith('100%');
-  const displayStyle = node.styleObj?.display || (isFullWidth ? 'block' : 'inline-block');
   const effectiveHref = props.parentLinkHref || node.attrs?.href || node.attrs?.['data-href'];
 
   const style: Record<string, any> = {
     position: 'relative',
-    display: displayStyle,
+    display: node.styleObj?.display || (isFullWidth.value ? 'block' : 'inline-block'),
     verticalAlign: 'middle',
-    width: node.styleObj?.width || '100%',
-    maxWidth: '100%',
+    width: effectiveImgMode.value === 'heightFix' ? 'auto' : (isFullWidth.value ? '100%' : (rawWidth.value || undefined)),
+    height: effectiveImgMode.value === 'heightFix' ? effectiveImgHeight.value : (hasExplicitWidth.value && hasExplicitHeight.value ? effectiveImgHeight.value : undefined),
+    maxWidth: node.styleObj?.maxWidth || node.styleObj?.['max-width'] || '100%',
+    maxHeight: node.styleObj?.maxHeight || node.styleObj?.['max-height'] || undefined,
     minWidth: '0',
     boxSizing: 'border-box',
     overflow: 'hidden',
@@ -410,14 +677,19 @@ function imageWrapStyle(node: ASTNode): Record<string, any> {
       ? (props.theme.imageSkeletonColor || '#f1f5f9')
       : 'transparent'
   };
-  if (aspectRatio && !isLoaded) {
+
+  if (props.imageCropRatio) {
+    style.aspectRatio = String(props.imageCropRatio);
+  } else if (aspectRatio && isFullWidth.value && effectiveImgMode.value === 'widthFix') {
     style.aspectRatio = String(aspectRatio);
-  } else if (placeholderHeight && !isLoaded) {
-    style.paddingBottom = placeholderHeight;
-    style.height = 0;
-  } else if (dataRatio && !isLoaded) {
-    style.paddingBottom = `${(dataRatio * 100).toFixed(2)}%`;
-    style.height = 0;
+  } else if (!isLoaded) {
+    if (placeholderHeight) {
+      style.paddingBottom = placeholderHeight;
+      style.height = 0;
+    } else if (dataRatio) {
+      style.paddingBottom = `${(dataRatio * 100).toFixed(2)}%`;
+      style.height = 0;
+    }
   }
   return style;
 }
@@ -428,12 +700,14 @@ function imageStyle(node: ASTNode): Record<string, any> {
   const cleanStyle = { ...(node.styleObj || {}) };
   delete cleanStyle.height;
   delete cleanStyle.width;
-  delete cleanStyle.maxWidth;
   delete cleanStyle.display;
+
   return {
     ...cleanStyle,
-    width: '100%',
-    maxWidth: '100%',
+    width: effectiveImgWidth.value,
+    height: effectiveImgHeight.value,
+    maxWidth: node.styleObj?.maxWidth || node.styleObj?.['max-width'] || '100%',
+    maxHeight: node.styleObj?.maxHeight || node.styleObj?.['max-height'] || undefined,
     display: 'block',
     boxSizing: 'border-box',
     opacity: (isLoaded || !props.imageSkeleton) ? 1 : 0,
@@ -467,6 +741,112 @@ function onImageError(node: ASTNode) {
   }
 }
 
+// ---- SVG ForeignObject & Standard SVG ----
+const isSvgForeign = computed(() => props.node.name === 'svg' && hasForeignObject(props.node));
+
+const svgForeignData = computed(() => {
+  if (!isSvgForeign.value) return null;
+  const { bgSvgXml, foreignObjectNodes } = splitSvgForeignObject(props.node);
+  const vbRatio = extractSvgViewBoxRatio(props.node);
+  const bgDataUri = bgSvgXml ? `data:image/svg+xml;utf8,${encodeURIComponent(bgSvgXml)}` : undefined;
+  const rawW = props.node.styleObj?.width || (props.node.attrs?.width ? `${props.node.attrs.width}px` : '100%');
+  const rawH = props.node.styleObj?.height || (props.node.attrs?.height ? `${props.node.attrs.height}px` : undefined);
+  return { bgSvgXml, bgDataUri, foreignObjectNodes, vbRatio, rawW, rawH };
+});
+
+const standardSvgXml = computed(() => {
+  if (props.node.name !== 'svg' || isSvgForeign.value) return '';
+  return serializeSvgToXml(props.node);
+});
+
+const standardSvgUri = computed(() => {
+  if (!standardSvgXml.value) return '';
+  return `data:image/svg+xml;utf8,${encodeURIComponent(standardSvgXml.value)}`;
+});
+
+const standardSvgVbRatio = computed(() => {
+  if (props.node.name !== 'svg') return undefined;
+  return extractSvgViewBoxRatio(props.node);
+});
+
+const standardSvgWidth = computed(() => {
+  if (props.node.name !== 'svg') return undefined;
+  let attrW = props.node.attrs?.width
+    ? (isNaN(Number(props.node.attrs.width)) ? props.node.attrs.width : `${props.node.attrs.width}px`)
+    : undefined;
+  const attrH = props.node.attrs?.height;
+  if (!attrW && !attrH && props.node.attrs?.viewbox) {
+    const parts = props.node.attrs.viewbox.trim().split(/[\s,]+/).map(Number);
+    if (parts.length === 4 && !isNaN(parts[2]) && !isNaN(parts[3])) {
+      if (parts[2] <= 64 && parts[3] <= 64) {
+        attrW = `${parts[2]}px`;
+      }
+    }
+  }
+  return props.node.styleObj?.width || attrW;
+});
+
+const standardSvgHeight = computed(() => {
+  if (props.node.name !== 'svg') return undefined;
+  const attrW = props.node.attrs?.width;
+  let attrH = props.node.attrs?.height
+    ? (isNaN(Number(props.node.attrs.height)) ? props.node.attrs.height : `${props.node.attrs.height}px`)
+    : undefined;
+  if (!attrW && !attrH && props.node.attrs?.viewbox) {
+    const parts = props.node.attrs.viewbox.trim().split(/[\s,]+/).map(Number);
+    if (parts.length === 4 && !isNaN(parts[2]) && !isNaN(parts[3])) {
+      if (parts[2] <= 64 && parts[3] <= 64) {
+        attrH = `${parts[3]}px`;
+      }
+    }
+  }
+  return props.node.styleObj?.height || attrH;
+});
+
+// ---- SVG Carousel Slide Tap ----
+function handleSlideTap(slide: { src: string; href?: string; title?: string }, node: ASTNode) {
+  emit('nodeEvent', 'tap', node);
+  if (slide.href) {
+    emit('linkTap', slide.href, node);
+  }
+  emit('imageTap', slide.src, 0, node);
+}
+
+// ---- SVG Code Block & Dual Mode Preview ----
+const isSvgCodeBlock = computed(() => !!props.node.extra?.isSvgCodeBlock);
+const rawSvgCode = computed(() => props.node.extra?.rawSvgCode);
+const codeLangLabel = computed(() => {
+  return isSvgCodeBlock.value
+    ? '🎨 XML / SVG'
+    : (props.node.extra?.lang || 'CODE').toUpperCase();
+});
+const showSvgPreview = ref(false);
+const svgCodeDataUri = computed(() => {
+  return rawSvgCode.value
+    ? `data:image/svg+xml;utf8,${encodeURIComponent(rawSvgCode.value)}`
+    : undefined;
+});
+
+function extractRawText(node: ASTNode): string {
+  if (node.type === 'text') return node.text || '';
+  if (!node.children || node.children.length === 0) return '';
+  return node.children.map(extractRawText).join('');
+}
+
+function handleCopyCode() {
+  const textToCopy = rawSvgCode.value || extractRawText(props.node);
+  if (textToCopy) {
+    if (typeof uni !== 'undefined' && uni.setClipboardData) {
+      uni.setClipboardData({
+        data: textToCopy,
+        success: () => {
+          uni.showToast({ title: '代码已复制', icon: 'none' });
+        }
+      });
+    }
+  }
+}
+
 // ---- List bullet ----
 const isOrderedParent = computed(() => props.parentTag === 'ol');
 const bulletText = computed(() =>
@@ -478,18 +858,12 @@ function onLinkTap() {
   emit('linkTap', props.node.attrs?.href || '', props.node);
 }
 
-function onImageTap() {
-  const src = props.node.attrs?.src || props.node.attrs?.['data-src'] || '';
-  const index = props.node.extra?.galleryIndex ?? 0;
-  emit('imageTap', src, index, props.node);
-}
-
 function onLongPress() {
   const text = props.node.text || '';
   if (text) emit('longPressText', text, props.node);
 }
 
-function onNodeTap() {
-  emit('nodeEvent', 'tap', props.node);
+function onNodeTap(e: any) {
+  emit('nodeEvent', 'tap', props.node, e);
 }
 </script>

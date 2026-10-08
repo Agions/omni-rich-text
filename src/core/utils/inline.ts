@@ -81,7 +81,27 @@ export function isAllInline(node: ASTNode): boolean {
       style.height ||
       style.margin ||
       style['margin-top'] ||
-      style['margin-bottom']
+      style['margin-bottom'] ||
+      style['margin-left'] ||
+      style['margin-right'] ||
+      style.padding ||
+      style['padding-top'] ||
+      style['padding-bottom'] ||
+      style['padding-left'] ||
+      style['padding-right'] ||
+      style.background ||
+      style['background-color'] ||
+      style['background-image'] ||
+      style.border ||
+      style['border-radius'] ||
+      style['border-top'] ||
+      style['border-bottom'] ||
+      style['border-left'] ||
+      style['border-right'] ||
+      style['border-width'] ||
+      style['box-shadow'] ||
+      style.transform ||
+      style.opacity
     ) {
       return false;
     }

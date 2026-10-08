@@ -1,6 +1,6 @@
 {
   "name": "omni-rich-text",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Cross-platform high-performance rich text rendering engine for Taro, UniApp, React Native, and WeChat Mini Program",
   "author": "",
   "license": "MIT",
@@ -68,8 +68,8 @@
   "scripts": {
     "build": "tsup",
     "prepublishOnly": "npm run build",
-    "test": "vitest run src/core/tests",
-    "test:watch": "vitest src/core/tests",
+    "test": "vitest run src/core/tests src/uni/tests src/react-native/tests src/wechat/tests",
+    "test:watch": "vitest src/core/tests src/uni/tests src/react-native/tests src/wechat/tests",
     "type-check": "tsc --noEmit",
     "demo": "npm run dev --prefix examples/playground"
   },

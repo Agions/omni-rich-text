@@ -77,6 +77,12 @@
 - **手势画廊联动与链接跳转**：轮播图各帧自动纳入文章图片画廊（`galleryList`），点击任意帧即可唤起全屏手势放大画廊，并完整支持各帧专属跳转外链拦截。
 - **SVG 格式代码块语法高亮与双模预览**：保护 `<pre><code>` 内的 SVG 源码不被错误当成真实矢量图解析，基于 Prism 引擎提供专业的 XML / SVG 语法着色（标签、属性名、属性值、注释）；代码块头部提供语言标、一键「📋 复制」及「👁️ 预览 / 💻 源码」实时双模切换。
 
+### 13. 🤖 AI 场景流式增量解析与打字机动效（AI Streaming & Typewriter Engine）
+- **末端活跃块语法自愈 (`healMarkdownTail`)**：专为大模型逐 Token 流式输出（SSE / WebSocket）量身定制。实时侦测并自动闭合末尾残缺的代码围栏（````/~~~`）、行内代码（`` ` ``）、粗体/斜体/删除线（`**`, `*`, `~~`）、Markdown 表格未闭合行（`| col1 | col2`）及数学公式（`$$`, `$`），彻底杜绝流式打字过程中的样式全屏跳跃与格式混乱。
+- **流式代码块 Auto-Flush**：代码块生成尚未收到闭合围栏时，自动即时 flush 缓冲区，配合语法高亮引擎实时上色展示，无需等待模型吐字完毕即可看到高亮代码。
+- **已闭合块冻结缓存 (`IncrementalStreamParser`)**：已闭合的稳定段落与块级结构自动冻结并缓存 AST，新 Token 到达时仅对末端活跃块进行增量自愈与局部解析，将长文流式追加开销由 $O(N^2)$ 降低至常数级增量开销。
+- **虚拟打字机呼吸光标 (`omni_stream_cursor_node`)**：流式模式下在 AST 真实末端自动挂载呼吸光标（`▍`），原生驱动动画零耗能，打字完结时自动卸载，带来原生级丝滑打字机体验。
+
 ---
 
 ## 📦 安装
@@ -241,6 +247,27 @@ console.log(ast);          // 结构化 AST 树
 console.log(galleryList);  // 全文图片有序 URL 列表
 ```
 
+### 6. AI 对话流式渲染与打字机光标 (`streaming`)
+
+在 AI 对话应用中，接收大模型 SSE Token 增量输出时只需配置 `streaming` 即可开启语法自愈与打字机光标：
+
+```tsx
+import React, { useState } from 'react';
+import { OmniRichText } from 'omni-rich-text/taro'; // 或 /uni, /react-native
+
+function ChatMessage({ messageText, isStreaming }) {
+  return (
+    <OmniRichText
+      content={messageText}
+      format="markdown"
+      streaming={isStreaming}
+      showCursor={isStreaming}
+      cursorChar="▍"
+    />
+  );
+}
+```
+
 ---
 
 ## ⚙️ 完整 API 配置属性说明
@@ -277,6 +304,9 @@ console.log(galleryList);  // 全文图片有序 URL 列表
 | `imageCropRatio` | `number` | `undefined` | 图片统一宽高比裁剪（如 16/9 ≈ 1.777、1 或 4/3），配合居中裁剪与圆角防溢出 |
 | `components` | `Record<string, Component>` | `undefined` | 声明式自定义组件映射表，如 `{ 'product-card': ProductCard }` |
 | `customRender` | `(node: ASTNode) => ReactNode` | `undefined` | 针对特定节点返回自定义渲染结果的拦截 Hook |
+| `streaming` | `boolean` | `false` | 是否开启 AI 流式增量解析模式（自动启用末端语法自愈与已闭合块冻结缓存） |
+| `showCursor` | `boolean` | `true` | 流式模式下是否在尾部显示打字机呼吸光标 |
+| `cursorChar` | `string` | `'▍'` | 自定义打字机呼吸光标符号（如 `'▍'`, `'|'`, `'█'`） |
 | `onLinkTap` / `@link-tap` | `Function` | - | 链接点击拦截器，返回 `false` 可阻止默认跳转行为 |
 | `onImageTap` / `@image-tap` | `Function` | - | 图片点击回调事件，携带当前图 URL 与全局画廊索引 |
 | `onLongPressText` / `@long-press-text` | `Function` | - | 文本长按事件回调 |
@@ -312,18 +342,20 @@ const customTheme: ThemeConfig = {
 npm test
 ```
 
-100 项核心测试覆盖了：
-- 公众号黑科技 SVG 轮播图智能识别、帧图片提取、原生 Swiper 映射与画廊联动
-- SVG 格式代码块排版保护、XML 语法着色、未转义/转义字符解析与双模实时切换
-- 秀米（Xiumi）、135 编辑器 100% 深度排版还原（SVG foreignObject 双层渲染、viewBox 高宽比、Data URI 分号状态机、非对称 Flex 比例保护、font-size: 0 折叠保护）
-- 微信公众号真实文章 1:1 高保真排版与多层嵌套还原
-- 尺寸 rem 1:1 无损换算与 1px 发丝边框保护
-- 原生标签 Display 语义属性与父级 Flexbox 弹性盒精准还原
-- 富文本排版裁剪体系（AST 字数安全截断、标签合法闭合、媒体保留/过滤、圆角防穿透保护）
-- AST 智能无损剪枝瘦身（空标签清理、连续留白折叠、单子级脱壳）
-- 加权自适应切片分批（首屏秒开与流式背景写入）
-- 图片智能混排、宽高自适应与异常静默容错
-- LRU 缓存命中与失效策略
+14 个测试套件，149 项核心测试覆盖了：
+- **AI 场景流式增量解析与语法自愈**：未闭合代码块自动闭合、代码缓冲区即时 flush、行内标记（粗体/斜体/删除线/公式/链接）自愈、已闭合块冻结缓存与虚拟呼吸光标
+- **跨平台适配器深度对齐**：Taro、UniApp (Vue 3)、React Native、微信原生小程序全平台流式与排版特性测试
+- **公众号黑科技 SVG 轮播图**：智能识别、帧图片提取、原生 Swiper 映射与画廊联动
+- **SVG 格式代码块**：排版保护、XML 语法着色、未转义/转义字符解析与双模实时切换
+- **秀米（Xiumi）、135 编辑器 100% 深度排版还原**：SVG foreignObject 双层渲染、viewBox 高宽比、Data URI 分号状态机、非对称 Flex 比例保护、font-size: 0 折叠保护
+- **微信公众号真实文章**：1:1 高保真排版与多层嵌套还原
+- **尺寸 rem 1:1 无损换算与 1px 发丝边框保护**
+- **原生标签 Display 语义属性与父级 Flexbox 弹性盒精准还原**
+- **富文本排版裁剪体系**：AST 字数安全截断、标签合法闭合、媒体保留/过滤、圆角防穿透保护
+- **AST 智能无损剪枝瘦身**：空标签清理、连续留白折叠、单子级脱壳
+- **加权自适应切片分批**：首屏秒开与流式背景写入
+- **图片智能混排、宽高自适应与异常静默容错**
+- **LRU 缓存命中与失效策略**
 
 ---
 

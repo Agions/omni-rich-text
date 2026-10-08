@@ -80,6 +80,7 @@ export const DIMENSION_PROPERTIES = new Set([
   'border-bottom-right-radius',
   'letter-spacing',
   'word-spacing',
+  'text-indent',
   'gap',
   'row-gap',
   'column-gap',
@@ -259,7 +260,17 @@ export function formatDimensionToRem(
 
   // Case 3: Values containing explicit px / rpx / upx / pt units
   // e.g. "200px", "10px 0px", "border: 1px solid #ccc", "calc(100% - 200px)"
-  let converted = cleanVal.replace(
+  // Protect all url(...) blocks so image paths or query params with 'px' (e.g. url('img-100px.png')) are not corrupted
+  const urlPlaceholders: string[] = [];
+  let maskedVal = cleanVal;
+  if (maskedVal.includes('url(')) {
+    maskedVal = maskedVal.replace(/url\((?:'[^']*'|"[^"]*"|[^)]*)\)/gi, (match) => {
+      urlPlaceholders.push(match);
+      return `__OMNI_URL_${urlPlaceholders.length - 1}__`;
+    });
+  }
+
+  let converted = maskedVal.replace(
     /([\d.]+)\s*(px|rpx|upx|pt)\b/gi,
     (_, numStr, unit) => {
       const num = parseFloat(numStr);
@@ -281,6 +292,13 @@ export function formatDimensionToRem(
       return `${parseFloat(remVal.toFixed(4))}rem`;
     }
   );
+
+  // Restore protected url(...) values
+  if (urlPlaceholders.length > 0) {
+    for (let i = 0; i < urlPlaceholders.length; i++) {
+      converted = converted.replace(`__OMNI_URL_${i}__`, urlPlaceholders[i]);
+    }
+  }
 
   // Case 4: font-size with relative units (rem / em / %) scaling
   if (lowerProp === 'font-size' && scale !== 1) {
@@ -467,6 +485,17 @@ export function resolveNodeStyles(
     if (attrs?.height && !userStyles['height']) {
       const rawH = attrs.height.trim();
       tagDefaults['height'] = rawH.endsWith('px') || rawH.endsWith('%') || rawH.endsWith('rem') ? rawH : `${rawH}px`;
+    }
+    // Support WeChat data-w < 500 as explicit width for stickers, badges, and icons
+    if (attrs?.['data-w'] && !attrs?.width && !userStyles['width']) {
+      const dw = parseFloat(attrs['data-w']);
+      if (!isNaN(dw) && dw > 0 && dw < 500) {
+        tagDefaults['width'] = `${dw}px`;
+      }
+    }
+    // If image has explicit height (style or attribute) but no width specified, do not force width: 100%
+    if ((userStyles['height'] || attrs?.height) && !userStyles['width'] && !attrs?.width) {
+      delete tagDefaults['width'];
     }
   }
 

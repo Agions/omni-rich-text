@@ -1,6 +1,6 @@
-// urt-node: Universal Rich Text Node — Native WeChat Mini Program
+// omni-node: Universal Rich Text Node — Native WeChat Mini Program
 // Handles a single AST node and recursively renders its children.
-// Events bubble upward via triggerEvent so urt-rich-text can intercept them.
+// Events bubble upward via triggerEvent so omni-rich-text can intercept them.
 
 Component({
   options: {
@@ -8,12 +8,20 @@ Component({
   },
   properties: {
     /** The AST node object produced by @universal-rt/core parseRichContent */
-    node: { type: Object, value: {} },
-    /** Semantic color theme overrides (see ThemeConfig in README) */
+    node: {
+      type: Object,
+      value: {},
+      observer(newVal) {
+        if (newVal && newVal.name === 'img') {
+          this._computeImage(newVal, this.data.imageCropMode, this.data.imageCropRatio);
+        }
+      }
+    },
+    /** Semantic color theme overrides */
     theme: { type: Object, value: {} },
-    /** Index of this item within a parent list (ul/ol) — used for ordered bullets */
+    /** Index of this item within a parent list (ul/ol) */
     indexInList: { type: Number, value: 0 },
-    /** Parent tag name — passed down so <li> can distinguish ul vs ol context */
+    /** Parent tag name */
     parentTag: { type: String, value: '' },
     /** Inherited link href from parent <a> tag */
     parentLinkHref: { type: String, value: '' },
@@ -22,34 +30,117 @@ Component({
     /** Whether direct parent is a flexbox container */
     parentIsFlex: { type: Boolean, value: false },
     /** Whether to display broken image placeholder */
-    showImageError: { type: Boolean, value: false }
+    showImageError: { type: Boolean, value: false },
+    /** Global image crop mode: 'widthFix' | 'aspectFill' | 'aspectFit' | 'auto' */
+    imageCropMode: {
+      type: String,
+      value: '',
+      observer(newVal) {
+        this._computeImage(this.data.node, newVal, this.data.imageCropRatio);
+      }
+    },
+    /** Global image crop aspect ratio */
+    imageCropRatio: {
+      type: Number,
+      value: 0,
+      observer(newVal) {
+        this._computeImage(this.data.node, this.data.imageCropMode, newVal);
+      }
+    }
   },
 
   data: {
-    hasError: false
+    hasError: false,
+    showSvgPreview: false,
+    effectiveImgMode: 'widthFix',
+    effectiveImgHeight: '',
+    effectiveImgWidth: '100%',
+    isFullWidth: true
+  },
+
+  lifetimes: {
+    attached() {
+      if (this.data.node && this.data.node.name === 'img') {
+        this._computeImage(this.data.node, this.data.imageCropMode, this.data.imageCropRatio);
+      }
+    }
   },
 
   methods: {
-    /**
-     * Fired when an image fails to load.
-     */
+    _computeImage(node, cropMode, cropRatio) {
+      if (!node || node.name !== 'img') return;
+      const rawHeight = node.styleObj?.height || (node.attrs?.height ? (isNaN(Number(node.attrs.height)) ? node.attrs.height : `${node.attrs.height}px`) : undefined);
+      const hasExplicitHeight = !!rawHeight;
+      const attrWidth = node.attrs?.width ? (isNaN(Number(node.attrs.width)) ? node.attrs.width : `${node.attrs.width}px`) : undefined;
+      const hasExplicitWidth = (!!node.styleObj?.width && node.styleObj.width !== '100%' && node.styleObj.width !== 'auto') || !!attrWidth;
+      const rawWidth = (node.styleObj?.width && node.styleObj.width !== 'auto') ? node.styleObj.width : attrWidth;
+      const isFullWidth = (rawWidth === '100%' || String(rawWidth).startsWith('100%')) || (!hasExplicitWidth && !hasExplicitHeight);
+
+      const effectiveImgMode =
+        (node.attrs?.mode) ||
+        (cropMode && cropMode !== 'auto' ? cropMode : null) ||
+        (cropRatio ? 'aspectFill' : null) ||
+        (hasExplicitWidth && hasExplicitHeight ? 'aspectFill' : null) ||
+        (hasExplicitHeight && !hasExplicitWidth ? 'heightFix' : 'widthFix');
+
+      const effectiveImgHeight = cropRatio
+        ? '100%'
+        : effectiveImgMode === 'widthFix'
+        ? ''
+        : (rawHeight || '');
+
+      const effectiveImgWidth = effectiveImgMode === 'heightFix'
+        ? 'auto'
+        : isFullWidth
+        ? '100%'
+        : (rawWidth || 'auto');
+
+      this.setData({
+        effectiveImgMode,
+        effectiveImgHeight,
+        effectiveImgWidth,
+        isFullWidth
+      });
+    },
+
+    onToggleSvgPreview() {
+      this.setData({ showSvgPreview: !this.data.showSvgPreview });
+    },
+
+    onCopyCode() {
+      const code = this.data.node.extra?.rawSvgCode || this._extractText(this.data.node);
+      if (code) {
+        wx.setClipboardData({
+          data: code,
+          success: () => wx.showToast({ title: '代码已复制', icon: 'none' })
+        });
+      }
+    },
+
+    _extractText(node) {
+      if (!node) return '';
+      if (node.type === 'text') return node.text || '';
+      if (!node.children || !node.children.length) return '';
+      return node.children.map(c => this._extractText(c)).join('');
+    },
+
+    onSlideTap(e) {
+      const { src, href } = e.currentTarget.dataset;
+      if (href) {
+        this.triggerEvent('linkTap', { href, node: this.data.node });
+      }
+      this.triggerEvent('imageTap', { src, index: 0, node: this.data.node });
+    },
+
     onImageError(e) {
       this.setData({ hasError: true });
     },
 
-    /**
-     * Fired when an <a> element is tapped.
-     * Propagates { href, node } up the component tree.
-     */
     onLinkTap(e) {
       const href = e.currentTarget.dataset.href || '';
       this.triggerEvent('linkTap', { href, node: this.data.node });
     },
 
-    /**
-     * Fired when an <img> element is tapped.
-     * Propagates { src, index, node } or { href, node } based on imageLinkAction.
-     */
     onImageTap(e) {
       const src = e.currentTarget.dataset.src || '';
       const galleryIndex = e.currentTarget.dataset.galleryIndex || 0;
@@ -63,7 +154,6 @@ Component({
           this.triggerEvent('linkTap', { href: effectiveHref, node: this.data.node });
           this.triggerEvent('imageTap', { src, index: galleryIndex, node: this.data.node });
         } else {
-          // 'link' (default)
           this.triggerEvent('linkTap', { href: effectiveHref, node: this.data.node });
         }
         return;
@@ -72,26 +162,14 @@ Component({
       this.triggerEvent('imageTap', { src, index: galleryIndex, node: this.data.node });
     },
 
-    /**
-     * Fired when any generic block node is tapped.
-     * Propagates { node, rawEvent } up the component tree.
-     */
     onNodeTap(e) {
       this.triggerEvent('nodeTap', { node: this.data.node, rawEvent: e });
     },
 
-    /**
-     * Fired when a text node is long-pressed.
-     * Propagates { text, node } up the tree without auto-copying to clipboard.
-     */
     onTextLongPress(e) {
       const text = this.data.node.text || '';
       this.triggerEvent('longPressText', { text, node: this.data.node });
     },
-
-    // ── Child event bubble-up handlers ─────────────────────────────────────
-    // These are bound on every recursive <urt-node> call so events propagate
-    // all the way up to the top-level <urt-rich-text> container.
 
     onChildLinkTap(e) {
       this.triggerEvent('linkTap', e.detail);

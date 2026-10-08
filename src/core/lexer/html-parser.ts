@@ -374,6 +374,12 @@ function isIconImage(node: ASTNode, rootFontSize: number = WECHAT_REM_BASE): boo
   const rawClass = node.attrs?.class || '';
   if (/wx_emoji|emoji|icon/i.test(rawClass)) return true;
 
+  const dataW = node.attrs?.['data-w'] ? parseFloat(node.attrs['data-w']) : undefined;
+  const dataH = node.attrs?.['data-h'] ? parseFloat(node.attrs['data-h']) : undefined;
+  if ((dataW !== undefined && dataW > 0 && dataW <= 80) || (dataH !== undefined && dataH > 0 && dataH <= 80)) {
+    return true;
+  }
+
   const wPx = parseLengthToPx(node.styleObj?.width || node.attrs?.width, rootFontSize);
   const hPx = parseLengthToPx(node.styleObj?.height || node.attrs?.height, rootFontSize);
 
@@ -410,13 +416,21 @@ function optimizeColumnDescendants(node: ASTNode, isMultiColumn: boolean): void 
       node.extra = node.extra || {};
       node.extra.isMultiImage = isMultiColumn;
       node.styleObj = node.styleObj || {};
-      node.styleObj['width'] = '100%';
-      node.styleObj['max-width'] = '100%';
-      node.styleObj['display'] = 'block';
-      node.styleObj['box-sizing'] = 'border-box';
-      if (node.styleObj['height'] && node.styleObj['height'] !== 'auto') {
-        node.styleObj['height'] = 'auto';
+
+      const hasAuthoredWidth =
+        (node.styleObj['width'] && node.styleObj['width'] !== '100%' && node.styleObj['width'] !== 'auto') ||
+        (node.attrs?.width && node.attrs.width !== '100%') ||
+        (node.attrs?.['data-w'] && Number(node.attrs['data-w']) < 500);
+
+      if (!hasAuthoredWidth) {
+        node.styleObj['width'] = '100%';
+        if (node.styleObj['height'] && !node.attrs?.height) {
+          delete node.styleObj['height'];
+        }
       }
+      node.styleObj['max-width'] = node.styleObj['max-width'] || '100%';
+      node.styleObj['display'] = hasAuthoredWidth ? (node.styleObj['display'] || 'inline-block') : 'block';
+      node.styleObj['box-sizing'] = 'border-box';
       node.styleStr = stringifyStyleObject(node.styleObj);
     }
     return;
@@ -424,12 +438,16 @@ function optimizeColumnDescendants(node: ASTNode, isMultiColumn: boolean): void 
 
   if (node.type === 'element') {
     node.styleObj = node.styleObj || {};
-    node.styleObj['box-sizing'] = 'border-box';
-    node.styleObj['max-width'] = '100%';
-    // If a nested wrapper in a column has a fixed pixel/rem width (e.g. 333.5px from desktop WeChat editor),
-    // clamp it to 100% so it doesn't force the column to expand or overflow
-    if (node.styleObj['width'] && !node.styleObj['width'].endsWith('%')) {
-      node.styleObj['width'] = '100%';
+    node.styleObj['box-sizing'] = node.styleObj['box-sizing'] || 'border-box';
+    // Only clamp very large container widths (>= 300px or >= 16rem from desktop editors)
+    // Preserves intentional small decorative items, avatars (e.g. 40px, 56px, 80px), badges, icons
+    const rawW = node.styleObj['width'];
+    if (rawW && !rawW.endsWith('%')) {
+      const wPx = parseLengthToPx(rawW);
+      if (wPx !== undefined && wPx >= 300 && node.styleObj['flex-shrink'] !== '0') {
+        node.styleObj['width'] = '100%';
+        node.styleObj['max-width'] = '100%';
+      }
     }
     node.styleStr = stringifyStyleObject(node.styleObj);
   }
@@ -470,66 +488,149 @@ function optimizeASTLayout(nodes: ASTNode[]): void {
         node.styleObj?.['flex-direction'] === 'column' ||
         node.styleObj?.['flex-flow']?.includes('column');
 
-      // 1. Flex container multi-column gallery optimization for mobile:
-      // When ALL columns in a flex row contain images (pure multi-image grid from WeChat editor),
-      // balance them to (100 / count)% and flex: 1 1 0% so they do not overflow mobile viewport.
-      // Asymmetric cards (e.g. avatar 80px + text bio flex:1, icon + title, or 30% + 70% photos)
-      // are recognized as intentional and kept 100% faithful to their authored styles.
+      // 1. Flex container multi-column gallery and layout optimization for mobile:
+      // Preserves intentional authored fixed widths (avatars, icons, product covers),
+      // while balancing unconstrained columns to (100 / count)% and flex: 1 1 0% so
+      // percentage-width children (like images) never collapse to 0px in CSS flexbox.
       if (isFlex && !isColumn) {
         const elemChildren = node.children.filter((c) => c.type === 'element');
-        const hasImg = elemChildren.some(hasDescendantImage);
-        const allHaveImg = elemChildren.length > 1 && elemChildren.every(hasDescendantImage);
 
-        let isAsymmetricLayout = false;
-        if (elemChildren.length > 1 && hasImg) {
-          if (!allHaveImg) {
-            // Some columns have images while others do not (e.g. avatar + text card)
-            isAsymmetricLayout = true;
-          } else {
-            // All columns have images: check if explicit percentage widths are intentionally unequal
-            const percentWidths = elemChildren
-              .map((c) => c.styleObj?.width)
-              .filter((w): w is string => !!w && w.endsWith('%'));
-            if (percentWidths.length === elemChildren.length) {
-              const first = percentWidths[0];
-              if (!percentWidths.every((w) => w === first)) {
-                isAsymmetricLayout = true;
-              }
+        function hasExplicitColWidth(col: ASTNode): boolean {
+          const w = col.styleObj?.width;
+          if (w && w !== 'auto' && w !== '100%') {
+            const px = parseLengthToPx(w);
+            // Desktop multi-column grid from WeChat/Xiumi has width: 333.5px or >= 300px.
+            // On mobile, these large widths should NOT be treated as fixed columns, but responsive grid columns!
+            if (px !== undefined && px >= 300) {
+              return false;
+            }
+            return true;
+          }
+          if (col.attrs?.width && col.attrs.width !== '100%') {
+            const px = parseLengthToPx(col.attrs.width);
+            if (px !== undefined && px >= 300) return false;
+            return true;
+          }
+          // Check if column wraps a fixed-size avatar/icon/cover (<= 240px)
+          if (col.children && col.children.length === 1) {
+            const onlyChild = col.children[0];
+            const cw =
+              onlyChild.styleObj?.width ||
+              onlyChild.attrs?.width ||
+              (onlyChild.attrs?.['data-w'] && Number(onlyChild.attrs['data-w']) <= 240 ? `${onlyChild.attrs['data-w']}px` : undefined);
+            if (cw && cw !== 'auto' && cw !== '100%') {
+              const px = parseLengthToPx(cw);
+              if (px !== undefined && px <= 240) return true;
             }
           }
+          return false;
         }
 
-        if (elemChildren.length > 1 && hasImg && !isAsymmetricLayout) {
+        if (elemChildren.length === 1) {
+          const only = elemChildren[0];
+          if (!hasExplicitColWidth(only)) {
+            only.styleObj = only.styleObj || {};
+            only.styleObj['width'] = '100%';
+            if (!only.styleObj['flex']) {
+              only.styleObj['flex'] = '1 1 0%';
+            }
+            only.styleStr = stringifyStyleObject(only.styleObj);
+          }
+        } else if (elemChildren.length > 1) {
+          const fixedCols = elemChildren.filter(hasExplicitColWidth);
+          const flexCols = elemChildren.filter((c) => !hasExplicitColWidth(c));
+
           node.styleObj = node.styleObj || {};
           node.styleObj['box-sizing'] = node.styleObj['box-sizing'] || 'border-box';
           node.styleObj['max-width'] = node.styleObj['max-width'] || '100%';
           node.styleStr = stringifyStyleObject(node.styleObj);
 
-          for (const child of node.children) {
-            if (child.type !== 'element') continue;
-            child.styleObj = child.styleObj || {};
-            child.styleObj['min-width'] = '0';
-            child.styleObj['max-width'] = '100%';
-            child.styleObj['box-sizing'] = child.styleObj['box-sizing'] || 'border-box';
-            child.styleObj['flex'] = '1 1 0%';
-            child.styleObj['flex-shrink'] = '1';
+          if (fixedCols.length > 0 && flexCols.length > 0) {
+            // Asymmetric layout with authored fixed columns (e.g. 56px avatar + bio text)
+            for (const col of fixedCols) {
+              col.styleObj = col.styleObj || {};
+              col.styleObj['flex-shrink'] = '0';
+              col.styleStr = stringifyStyleObject(col.styleObj);
+            }
+            for (const col of flexCols) {
+              col.styleObj = col.styleObj || {};
+              if (!col.styleObj['flex']) {
+                col.styleObj['flex'] = '1 1 0%';
+              }
+              col.styleObj['min-width'] = '0';
+              col.styleObj['box-sizing'] = col.styleObj['box-sizing'] || 'border-box';
+              if (hasDescendantImage(col)) {
+                optimizeColumnDescendants(col, true);
+              }
+              col.styleStr = stringifyStyleObject(col.styleObj);
+            }
+          } else if (fixedCols.length === 0) {
+            const imgCols = elemChildren.filter(hasDescendantImage);
+            const textCols = elemChildren.filter((c) => !hasDescendantImage(c));
 
-            if (!child.styleObj['width'] || !child.styleObj['width'].endsWith('%')) {
-              child.styleObj['width'] = `${parseFloat((100 / elemChildren.length).toFixed(2))}%`;
-            }
-            if (child.name !== 'img') {
-              optimizeColumnDescendants(child, true);
-            } else if (isIconImage(child)) {
-              child.extra = child.extra || {};
-              child.extra.isIcon = true;
-              child.styleObj['display'] = 'inline-block';
-              child.styleObj['vertical-align'] = 'middle';
+            if (imgCols.length > 0 && textCols.length > 0) {
+              // Asymmetric Media Object layout: image/badge alongside text
+              // Media column should NOT blow up to 50% or squish the text column!
+              for (const col of imgCols) {
+                col.styleObj = col.styleObj || {};
+                col.styleObj['flex-shrink'] = '0';
+                col.styleObj['box-sizing'] = col.styleObj['box-sizing'] || 'border-box';
+                if (!col.styleObj['width'] || col.styleObj['width'] === '100%') {
+                  col.styleObj['width'] = '35%';
+                  col.styleObj['max-width'] = '35%';
+                }
+                optimizeColumnDescendants(col, false);
+                col.styleStr = stringifyStyleObject(col.styleObj);
+              }
+              for (const col of textCols) {
+                col.styleObj = col.styleObj || {};
+                col.styleObj['flex'] = '1 1 0%';
+                col.styleObj['min-width'] = '0';
+                col.styleObj['box-sizing'] = col.styleObj['box-sizing'] || 'border-box';
+                col.styleStr = stringifyStyleObject(col.styleObj);
+              }
             } else {
-              child.extra = child.extra || {};
-              child.extra.isMultiImage = true;
-              child.styleObj['display'] = 'block';
+              // Pure multi-column layout (e.g. multi-image gallery row or multi-column text)
+              const count = elemChildren.length;
+              const percentWidth = `${parseFloat((100 / count).toFixed(2))}%`;
+
+              for (const col of elemChildren) {
+                col.styleObj = col.styleObj || {};
+                col.styleObj['min-width'] = '0';
+                col.styleObj['max-width'] = '100%';
+                col.styleObj['box-sizing'] = col.styleObj['box-sizing'] || 'border-box';
+                if (!col.styleObj['flex'] || col.styleObj['flex'] === '0 0 auto') {
+                  col.styleObj['flex'] = '1 1 0%';
+                }
+                col.styleObj['flex-shrink'] = '1';
+
+                if (!col.styleObj['width'] || !col.styleObj['width'].endsWith('%')) {
+                  col.styleObj['width'] = percentWidth;
+                }
+                if (hasDescendantImage(col)) {
+                  if (col.name !== 'img') {
+                    optimizeColumnDescendants(col, true);
+                  } else if (isIconImage(col)) {
+                    col.extra = col.extra || {};
+                    col.extra.isIcon = true;
+                    col.styleObj['display'] = 'inline-block';
+                    col.styleObj['vertical-align'] = 'middle';
+                  } else {
+                    col.extra = col.extra || {};
+                    col.extra.isMultiImage = true;
+                    col.styleObj['display'] = 'block';
+                  }
+                }
+                col.styleStr = stringifyStyleObject(col.styleObj);
+              }
             }
-            child.styleStr = stringifyStyleObject(child.styleObj);
+          } else {
+            // All columns have explicit widths: ensure none shrink unintentionally
+            for (const col of elemChildren) {
+              col.styleObj = col.styleObj || {};
+              col.styleObj['flex-shrink'] = col.styleObj['flex-shrink'] || '0';
+              col.styleStr = stringifyStyleObject(col.styleObj);
+            }
           }
         }
       }

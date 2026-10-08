@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { View, Text, Pressable, Linking, Alert } from 'react-native';
 import {
   parseRichContent,
+  parseStreamContent,
   chunkAST,
   WECHAT_REM_BASE,
   DEFAULT_REM_SCALE,
@@ -44,7 +45,13 @@ export const OmniRichText: React.FC<OmniRichTextProps> = ({
   imageLinkAction = 'link',
   imageSkeleton = true,
   showImageError = false,
+  imageCropMode,
+  imageCropRatio,
+  streaming = false,
+  showCursor = true,
+  cursorChar = '▍',
   customRender,
+  components,
   tabBarList = [],
   truncate,
   truncateLength,
@@ -56,13 +63,18 @@ export const OmniRichText: React.FC<OmniRichTextProps> = ({
   onLinkTap,
   onImageTap,
   onLongPressText,
-  onMediaEvent
+  onMediaEvent,
+  onNodeEvent
 }) => {
   const effectiveRemScale = remScale ?? theme?.remScale ?? DEFAULT_REM_SCALE;
   const effectiveFontScale = fontScale ?? theme?.fontScale ?? 1;
   const effectiveRootFontSize = rootFontSize ?? theme?.rootFontSize ?? WECHAT_REM_BASE;
   const effectiveBaseFontSize = Number(baseFontSize ?? theme?.baseFontSize ?? DEFAULT_BASE_FONT_SIZE);
   const effectiveContentBaseFontSize = Number(contentBaseFontSize ?? theme?.contentBaseFontSize ?? DEFAULT_CONTENT_BASE_FONT_SIZE);
+
+  const customTags = useMemo(() => {
+    return components ? Object.keys(components).map((k) => k.toLowerCase()) : undefined;
+  }, [components]);
 
   const effectiveTruncate = useMemo(() => {
     if (truncate) return truncate;
@@ -78,13 +90,34 @@ export const OmniRichText: React.FC<OmniRichTextProps> = ({
     onExpandChange?.(next);
   }, [isExpanded, onExpandChange]);
 
-  // ── 1. Parse & optimize content → AST ─────────────────────────────────────
+  // ── 1. Parse & optimize content → AST (with LRU Cache or Stream Parser) ───────
   const { ast, galleryList, themeBgColor } = useMemo(() => {
+    if (streaming) {
+      return parseStreamContent(content, {
+        format,
+        mode,
+        maxDepth,
+        extractStyles: extractStyles ?? (mode === 'wechat'),
+        customTags,
+        remScale: effectiveRemScale,
+        fontScale: effectiveFontScale,
+        rootFontSize: effectiveRootFontSize,
+        baseFontSize: effectiveBaseFontSize,
+        contentBaseFontSize: effectiveContentBaseFontSize,
+        fontSize,
+        fontSizeResolver,
+        truncate: effectiveTruncate,
+        showCursor,
+        cursorChar
+      });
+    }
+
     return parseRichContent(content, {
       format,
       mode,
       maxDepth,
       extractStyles: extractStyles ?? (mode === 'wechat'),
+      customTags,
       remScale: effectiveRemScale,
       fontScale: effectiveFontScale,
       rootFontSize: effectiveRootFontSize,
@@ -95,13 +128,14 @@ export const OmniRichText: React.FC<OmniRichTextProps> = ({
       truncate: effectiveTruncate,
       cache
     });
-  }, [content, format, mode, maxDepth, extractStyles, effectiveRemScale, effectiveFontScale, effectiveRootFontSize, effectiveBaseFontSize, effectiveContentBaseFontSize, fontSize, fontSizeResolver, effectiveTruncate, cache]);
+  }, [streaming, showCursor, cursorChar, content, format, mode, maxDepth, extractStyles, customTags, effectiveRemScale, effectiveFontScale, effectiveRootFontSize, effectiveBaseFontSize, effectiveContentBaseFontSize, fontSize, fontSizeResolver, effectiveTruncate, cache]);
 
-  // ── 2. Chunk calculation ───────────────────────────────────────────────────
+  // ── 2. Chunk calculation (bypassed in streaming mode) ───────────────────────
+  const effectiveChunked = streaming ? false : chunked;
   const chunkedData = useMemo(() => {
-    if (!chunked) return null;
+    if (!effectiveChunked) return null;
     return chunkAST(ast, { chunkSize });
-  }, [ast, chunked, chunkSize]);
+  }, [ast, effectiveChunked, chunkSize]);
 
   const [streamedNodes, setStreamedNodes] = useState<ASTNode[]>([]);
 
@@ -109,7 +143,7 @@ export const OmniRichText: React.FC<OmniRichTextProps> = ({
   // Renders the first chunk immediately (synchronously via useMemo), then
   // schedules subsequent chunks with 80 ms gaps so the UI stays responsive.
   useEffect(() => {
-    if (!chunked || !chunkedData || chunkedData.remaining.length === 0) {
+    if (!effectiveChunked || !chunkedData || chunkedData.remaining.length === 0) {
       setStreamedNodes([]);
       return;
     }
@@ -132,13 +166,13 @@ export const OmniRichText: React.FC<OmniRichTextProps> = ({
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [chunked, chunkedData]);
+  }, [effectiveChunked, chunkedData]);
 
   // Merged display list = initial chunk (fast-path) + progressively added chunks
   const displayNodes = useMemo(() => {
-    if (!chunked || !chunkedData) return ast;
+    if (!effectiveChunked || !chunkedData) return ast;
     return [...chunkedData.initial, ...streamedNodes];
-  }, [chunked, chunkedData, ast, streamedNodes]);
+  }, [effectiveChunked, chunkedData, ast, streamedNodes]);
 
   // ── 4. Event handlers ─────────────────────────────────────────────────────
 
@@ -217,10 +251,14 @@ export const OmniRichText: React.FC<OmniRichTextProps> = ({
             imageSkeleton={imageSkeleton}
             showImageError={showImageError}
             imageLinkAction={imageLinkAction}
+            imageCropMode={imageCropMode}
+            imageCropRatio={imageCropRatio}
+            components={components}
             onLinkTap={handleLinkTap}
             onImageTap={handleImageTap}
             onLongPressText={handleLongPressText}
             onMediaEvent={onMediaEvent}
+            onNodeEvent={onNodeEvent}
             customRender={customRender}
           />
         ))}

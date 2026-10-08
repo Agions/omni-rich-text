@@ -1,13 +1,40 @@
 <view class="omni-rich-text-container {{className}}" style="{{containerStyle}}">
-  <omni-node
-    wx:for="{{displayNodes}}"
-    wx:key="id"
-    node="{{item}}"
-    theme="{{theme}}"
-    imageLinkAction="{{imageLinkAction}}"
-    showImageError="{{showImageError}}"
-    bind:linkTap="onLinkTap"
-    bind:imageTap="onImageTap"
-    bind:longPressText="onLongPressText"
-  />
+  <view id="{{contentInnerId}}" class="omni-content-inner" style="{{clampedWrapperStyle}}">
+    <omni-node
+      wx:for="{{displayNodes}}"
+      wx:key="id"
+      node="{{item}}"
+      theme="{{theme}}"
+      imageCropMode="{{imageCropMode}}"
+      imageCropRatio="{{imageCropRatio}}"
+      imageLinkAction="{{imageLinkAction}}"
+      showImageError="{{showImageError}}"
+      bind:linkTap="onLinkTap"
+      bind:imageTap="onImageTap"
+      bind:longPressText="onLongPressText"
+    />
+
+    <!-- Gradient Mask when clamped -->
+    <view
+      wx:if="{{isClamped}}"
+      class="omni-clamp-mask"
+      style="position:absolute;bottom:0;left:0;right:0;height:90px;background:{{fadeGradient}};pointer-events:none;"
+    ></view>
+  </view>
+
+  <!-- Expand / Collapse Action Button -->
+  <view
+    wx:if="{{clampMaxHeight && canClamp && (isClamped || showCollapse)}}"
+    class="omni-clamp-action-wrap"
+    style="display:flex;justify-content:center;align-items:center;margin-top:{{isClamped ? '-16px' : '12px'}};position:relative;z-index:5;"
+  >
+    <view
+      class="omni-clamp-btn"
+      catch:tap="onToggleExpand"
+      style="display:inline-flex;align-items:center;justify-content:center;padding:6px 18px;font-size:26rpx;color:{{theme.linkColor || '#07c160'}};background-color:#ffffff;border:1rpx solid rgba(0,0,0,0.08);border-radius:40rpx;box-shadow:0 4rpx 16rpx rgba(0,0,0,0.06);font-weight:500;"
+    >
+      <text>{{isClamped ? (expandText || '展开全文') : (collapseText || '收起')}}</text>
+      <text style="margin-left:8rpx;font-size:22rpx;">{{isClamped ? '▼' : '▲'}}</text>
+    </view>
+  </view>
 </view>

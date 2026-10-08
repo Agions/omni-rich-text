@@ -4,6 +4,7 @@ import { View, Text } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import {
   parseRichContent,
+  parseStreamContent,
   chunkAST,
   SmartLinkDispatcher,
   createPlatformBridge,
@@ -54,6 +55,9 @@ export const OmniRichText: React.FC<OmniRichTextProps> = ({
   onExpandChange,
   imageCropMode,
   imageCropRatio,
+  streaming = false,
+  showCursor = true,
+  cursorChar = '▍',
   onLinkTap,
   onImageTap,
   onLongPressText,
@@ -78,8 +82,28 @@ export const OmniRichText: React.FC<OmniRichTextProps> = ({
     return components ? Object.keys(components).map((k) => k.toLowerCase()) : undefined;
   }, [components]);
 
-  // 1. Parse and optimize rich content to AST & Gallery (with LRU Cache)
+  // 1. Parse and optimize rich content to AST & Gallery (with LRU Cache or Stream Parser)
   const { ast, galleryList, themeBgColor } = useMemo(() => {
+    if (streaming) {
+      return parseStreamContent(content, {
+        format,
+        mode,
+        maxDepth,
+        extractStyles: extractStyles ?? (mode === 'wechat'),
+        customTags,
+        remScale: effectiveRemScale,
+        fontScale: effectiveFontScale,
+        rootFontSize: effectiveRootFontSize,
+        baseFontSize: effectiveBaseFontSize,
+        contentBaseFontSize: effectiveContentBaseFontSize,
+        fontSize,
+        fontSizeResolver,
+        truncate: effectiveTruncate,
+        showCursor,
+        cursorChar
+      });
+    }
+
     return parseRichContent(content, {
       format,
       mode,
@@ -96,13 +120,14 @@ export const OmniRichText: React.FC<OmniRichTextProps> = ({
       truncate: effectiveTruncate,
       cache
     });
-  }, [content, format, mode, maxDepth, extractStyles, customTags, effectiveRemScale, effectiveFontScale, effectiveRootFontSize, effectiveBaseFontSize, effectiveContentBaseFontSize, fontSize, fontSizeResolver, effectiveTruncate, cache]);
+  }, [streaming, showCursor, cursorChar, content, format, mode, maxDepth, extractStyles, customTags, effectiveRemScale, effectiveFontScale, effectiveRootFontSize, effectiveBaseFontSize, effectiveContentBaseFontSize, fontSize, fontSizeResolver, effectiveTruncate, cache]);
 
-  // 2. Chunking calculation for progressive setData rendering
+  // 2. Chunking calculation for progressive setData rendering (bypassed in streaming mode)
+  const effectiveChunked = streaming ? false : chunked;
   const chunkedData = useMemo(() => {
-    if (!chunked) return null;
+    if (!effectiveChunked) return null;
     return chunkAST(ast, { chunkSize });
-  }, [ast, chunked, chunkSize]);
+  }, [ast, effectiveChunked, chunkSize]);
 
   const [streamedNodes, setStreamedNodes] = useState<ASTNode[]>([]);
   const [loadedChunkCount, setLoadedChunkCount] = useState(0);

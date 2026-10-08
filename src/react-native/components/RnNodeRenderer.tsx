@@ -6,7 +6,8 @@ import {
   ScrollView,
   Pressable,
   Animated,
-  StyleSheet
+  StyleSheet,
+  Alert
 } from 'react-native';
 import {
   ASTNode,
@@ -32,6 +33,8 @@ interface OmniImageProps {
   imageSkeleton?: boolean;
   imageSkeletonColor?: string;
   showImageError?: boolean;
+  imageCropMode?: 'widthFix' | 'aspectFill' | 'aspectFit' | 'auto';
+  imageCropRatio?: number;
   onImageTap: (src: string, node: ASTNode) => void;
   onLinkTap?: (href: string, node: ASTNode) => void;
 }
@@ -50,6 +53,8 @@ const OmniImage: React.FC<OmniImageProps> = ({
   imageSkeleton = true,
   imageSkeletonColor = '#f1f5f9',
   showImageError = false,
+  imageCropMode,
+  imageCropRatio,
   onImageTap,
   onLinkTap
 }) => {
@@ -71,8 +76,24 @@ const OmniImage: React.FC<OmniImageProps> = ({
     setLoaded(true);
   };
 
+  const rawHeight = node.styleObj?.height || (node.attrs.height ? (isNaN(Number(node.attrs.height)) ? node.attrs.height : `${node.attrs.height}px`) : undefined);
+  const hasExplicitHeight = !!rawHeight;
+  const attrWidth = node.attrs.width ? (isNaN(Number(node.attrs.width)) ? node.attrs.width : `${node.attrs.width}px`) : undefined;
+  const hasExplicitWidth = (!!node.styleObj?.width && node.styleObj.width !== '100%' && node.styleObj.width !== 'auto') || !!attrWidth;
+  const rawWidth = (node.styleObj?.width && node.styleObj.width !== 'auto') ? node.styleObj.width : attrWidth;
+  const isFullWidth = (rawWidth === '100%' || rawWidth?.startsWith('100%')) || (!hasExplicitWidth && !hasExplicitHeight);
+
+  const effectiveImgMode =
+    (node.attrs.mode as any) ||
+    (imageCropMode && imageCropMode !== 'auto' ? imageCropMode : null) ||
+    (imageCropRatio ? 'aspectFill' : null) ||
+    (hasExplicitWidth && hasExplicitHeight ? 'aspectFill' : null) ||
+    (hasExplicitHeight && !hasExplicitWidth ? 'heightFix' : 'widthFix');
+
+  const resizeMode = (effectiveImgMode === 'aspectFill' || imageCropRatio) ? 'cover' : 'contain';
+
   const dataRatio = node.extra?.dataRatio;
-  const aspectRatio = node.extra?.aspectRatio || (dataRatio ? 1 / dataRatio : undefined);
+  const aspectRatio = imageCropRatio || node.extra?.aspectRatio || (dataRatio ? 1 / dataRatio : undefined);
   const nodeStyle = cssToRn(node.styleObj);
 
   const effectiveHref = linkHref || node.attrs.href || node.attrs['data-href'];
@@ -108,13 +129,18 @@ const OmniImage: React.FC<OmniImageProps> = ({
     );
   }
 
+  const explicitH = typeof rawHeight === 'string' && rawHeight.endsWith('px')
+    ? parseFloat(rawHeight)
+    : (typeof rawHeight === 'number' ? rawHeight : undefined);
+
   return (
     <Pressable onPress={handlePress}>
       <View
         style={[
           styles.imageWrap,
           imageSkeleton && !loaded && !hasError ? { backgroundColor: imageSkeletonColor } : undefined,
-          aspectRatio ? { aspectRatio } : undefined,
+          aspectRatio && isFullWidth ? { aspectRatio } : undefined,
+          explicitH && effectiveImgMode !== 'widthFix' ? { height: explicitH } : undefined,
           nodeStyle as any
         ]}
       >
@@ -139,14 +165,121 @@ const OmniImage: React.FC<OmniImageProps> = ({
         ) : (
           <Animated.Image
             source={{ uri: src }}
-            style={[styles.image, { opacity }]}
-            resizeMode="contain"
+            style={[
+              styles.image,
+              { opacity },
+              explicitH && effectiveImgMode !== 'widthFix' ? { height: explicitH } : undefined,
+              aspectRatio ? { aspectRatio } : undefined
+            ]}
+            resizeMode={resizeMode}
             onLoad={handleLoad}
             onError={handleError}
           />
         )}
       </View>
     </Pressable>
+  );
+};
+
+
+const RnStreamCursor: React.FC<{ cursorChar?: string }> = ({ cursorChar = '▍' }) => {
+  const opacity = React.useRef(new Animated.Value(1)).current;
+
+  React.useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0, duration: 450, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 450, useNativeDriver: true })
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [opacity]);
+
+  return (
+    <Animated.Text style={[{ opacity }, styles.cursor]}>
+      {cursorChar}
+    </Animated.Text>
+  );
+};
+
+function extractRawText(node: ASTNode): string {
+  if (node.type === 'text') return node.text || '';
+  if (!node.children || node.children.length === 0) return '';
+  return node.children.map(extractRawText).join('');
+}
+
+const RnCodeBlock: React.FC<{
+  node: ASTNode;
+  theme?: ThemeConfig;
+  renderChild: (child: ASTNode, idx?: number, pTag?: string) => React.ReactNode;
+}> = ({ node, theme, renderChild }) => {
+  const [showPreview, setShowPreview] = React.useState(false);
+  const isSvg = !!node.extra?.isSvgCodeBlock;
+  const rawSvgCode = node.extra?.rawSvgCode;
+  const lang = (node.extra?.lang || (isSvg ? 'xml' : 'code')).toUpperCase();
+  const svgDataUri = rawSvgCode
+    ? `data:image/svg+xml;utf8,${encodeURIComponent(rawSvgCode)}`
+    : undefined;
+
+  const handleCopy = () => {
+    const textToCopy = rawSvgCode || extractRawText(node);
+    if (textToCopy) {
+      Alert.alert('已复制代码', textToCopy.slice(0, 100) + (textToCopy.length > 100 ? '...' : ''));
+    }
+  };
+
+  return (
+    <View
+      style={[
+        styles.preContainer,
+        { backgroundColor: theme?.codeBgColor ?? '#282c34' },
+        cssToRn(node.styleObj) as any
+      ]}
+    >
+      <View style={styles.preHeader}>
+        <Text style={styles.preHeaderLang}>{isSvg ? '🎨 XML / SVG' : lang}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {isSvg && svgDataUri ? (
+            <Pressable
+              onPress={() => setShowPreview(!showPreview)}
+              style={[styles.preBtn, showPreview ? { backgroundColor: '#07c160' } : undefined]}
+            >
+              <Text style={styles.preBtnText}>{showPreview ? '💻 源码' : '👁️ 预览'}</Text>
+            </Pressable>
+          ) : null}
+          <Pressable onPress={handleCopy} style={[styles.preBtn, { marginLeft: 6 }]}>
+            <Text style={styles.preBtnText}>📋 复制</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {showPreview && svgDataUri ? (
+        <View style={styles.svgPreviewWrap}>
+          <Image
+            source={{ uri: svgDataUri }}
+            style={{ width: '100%', height: 220 }}
+            resizeMode="contain"
+          />
+        </View>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.preScroll}
+          contentContainerStyle={styles.preContent}
+        >
+          <Text
+            style={[
+              styles.preText,
+              { color: theme?.codeTextColor ?? '#abb2bf' }
+            ]}
+          >
+            {node.children?.map((child, idx) => renderChild(child, idx, 'pre'))}
+          </Text>
+        </ScrollView>
+      )}
+    </View>
   );
 };
 
@@ -158,11 +291,23 @@ export interface RnNodeRendererProps {
   onImageTap: (src: string, node: ASTNode) => void;
   onLongPressText?: (text: string, node: ASTNode) => void;
   onMediaEvent?: (payload: MediaEventPayload) => void;
+  onNodeEvent?: (eventType: string, node: ASTNode, rawEvent?: any) => void;
   customRender?: (node: ASTNode) => React.ReactNode | null;
+  components?: Record<
+    string,
+    React.ComponentType<{
+      node: ASTNode;
+      attrs: Record<string, string>;
+      children?: React.ReactNode;
+      [key: string]: any;
+    }>
+  >;
   theme?: ThemeConfig;
   imageSkeleton?: boolean;
   showImageError?: boolean;
   imageLinkAction?: 'link' | 'preview' | 'both';
+  imageCropMode?: 'widthFix' | 'aspectFill' | 'aspectFit' | 'auto';
+  imageCropRatio?: number;
   /** 0-based position of this node within its parent list (ul/ol) */
   indexInList?: number;
   /** Tag name of the direct parent node (used for li bullet logic) */
@@ -175,26 +320,6 @@ export interface RnNodeRendererProps {
 
 /**
  * Recursive React Native node renderer for a single AST node.
- *
- * Rendering priority:
- *   0. Skip WeChat-specific ignored tags
- *   1. customRender hook (user override wins)
- *   2. Text leaf
- *   3. SVG → data URI <Image>
- *   4. Inline formatting tags → nested <Text>
- *   5. <a> → <Pressable> + Linking.openURL
- *   6. <img> → OmniImage (fade-in skeleton)
- *   7. <video> → customRender fallback or placeholder
- *   8. <audio> → customRender fallback or placeholder
- *   9. <hr> → 1 px View divider
- *  10. <pre> → horizontal <ScrollView> with monospace <Text>
- *  11. <blockquote> → left-border <View>
- *  12. <br> → newline <Text>
- *  13. <table> → horizontal ScrollView + flex rows
- *  14. <tr> → flex row <View>
- *  15. <th> / <td> → bordered <View>
- *  16. <li> → bullet + flex <View>
- *  17. everything else → generic block <View>
  */
 export const RnNodeRenderer: React.FC<RnNodeRendererProps> = React.memo(({
   node,
@@ -202,16 +327,21 @@ export const RnNodeRenderer: React.FC<RnNodeRendererProps> = React.memo(({
   onImageTap,
   onLongPressText,
   onMediaEvent,
+  onNodeEvent,
   customRender,
+  components,
   theme,
   imageSkeleton = true,
   showImageError = false,
   imageLinkAction = 'link',
+  imageCropMode,
+  imageCropRatio,
   indexInList,
   parentTag,
   parentIsFlex = false,
   parentLinkHref
 }) => {
+
   const isCurrentFlex = isFlexDisplay(node.styleObj?.display);
   const isParentFlex = parentIsFlex || !!node.extra?.parentIsFlex;
 
@@ -228,6 +358,9 @@ export const RnNodeRenderer: React.FC<RnNodeRendererProps> = React.memo(({
       parentIsFlex={isCurrentFlex}
       parentLinkHref={node.name === 'a' ? (node.attrs.href || '') : linkHref}
       imageLinkAction={imageLinkAction}
+      imageCropMode={imageCropMode}
+      imageCropRatio={imageCropRatio}
+      components={components}
       theme={theme}
       imageSkeleton={imageSkeleton}
       showImageError={showImageError}
@@ -235,6 +368,7 @@ export const RnNodeRenderer: React.FC<RnNodeRendererProps> = React.memo(({
       onImageTap={onImageTap}
       onLongPressText={onLongPressText}
       onMediaEvent={onMediaEvent}
+      onNodeEvent={onNodeEvent}
       customRender={customRender}
     />
   );
@@ -242,10 +376,32 @@ export const RnNodeRenderer: React.FC<RnNodeRendererProps> = React.memo(({
   // ── 0. WeChat-specific tags that must not be rendered ────────────────────
   if (node.extra?.wxIgnored) return null;
 
+  // ── 0.5. AI Streaming Blinking Cursor ──────────────────────────────────────
+  if (node.extra?.isStreamCursor) {
+    const cursorChar = node.children?.[0]?.text || '▍';
+    return <RnStreamCursor cursorChar={cursorChar} />;
+  }
+
   // ── 1. Custom render hook ────────────────────────────────────────────────
   if (customRender) {
     const result = customRender(node);
     if (result !== null && result !== undefined) return <>{result}</>;
+  }
+
+  // ── 1.1 Custom components mapping ────────────────────────────────────────
+  if (components && node.name && components[node.name]) {
+    const CustomComp = components[node.name];
+    return (
+      <CustomComp
+        node={node}
+        attrs={node.attrs || {}}
+        onNodeEvent={onNodeEvent}
+        onLinkClick={(href: string, n: ASTNode) => onLinkTap(href, n)}
+        onImageClick={(src: string, n: ASTNode) => onImageTap(src, n)}
+      >
+        {node.children?.map((child, idx) => renderChild(child, idx, node.name))}
+      </CustomComp>
+    );
   }
 
   // ── 2. Leaf text node ────────────────────────────────────────────────────
@@ -301,16 +457,34 @@ export const RnNodeRenderer: React.FC<RnNodeRendererProps> = React.memo(({
   // ── 3. SVG → layout container or data URI ──────────────────────────────
   if (node.name === 'svg') {
     if (hasForeignObject(node)) {
-      const { foreignObjectNodes } = splitSvgForeignObject(node);
+      const { bgSvgXml, foreignObjectNodes } = splitSvgForeignObject(node);
+      const vbRatio = extractSvgViewBoxRatio(node);
+      const bgDataUri = bgSvgXml ? `data:image/svg+xml;utf8,${encodeURIComponent(bgSvgXml)}` : undefined;
       const rnStyle = cssToRn(node.styleObj);
       return (
-        <View style={[{ width: '100%' }, rnStyle as any]}>
-          {foreignObjectNodes.map((fo) =>
-            fo.children?.map((child, idx) => renderChild(child, idx, 'foreignobject'))
-          )}
+        <View
+          style={[
+            { width: '100%', position: 'relative' },
+            vbRatio ? { aspectRatio: vbRatio } : undefined,
+            rnStyle as any
+          ]}
+        >
+          {bgDataUri ? (
+            <Image
+              source={{ uri: bgDataUri }}
+              style={StyleSheet.absoluteFillObject}
+              resizeMode="contain"
+            />
+          ) : null}
+          <View style={{ width: '100%', height: '100%', position: 'relative', zIndex: 1 }}>
+            {foreignObjectNodes.map((fo) =>
+              fo.children?.map((child, idx) => renderChild(child, idx, 'foreignobject'))
+            )}
+          </View>
         </View>
       );
     }
+
 
     const svgXml = serializeSvgToXml(node);
     const uri = `data:image/svg+xml;utf8,${encodeURIComponent(svgXml)}`;
@@ -403,6 +577,8 @@ export const RnNodeRenderer: React.FC<RnNodeRendererProps> = React.memo(({
         imageSkeleton={imageSkeleton}
         imageSkeletonColor={theme?.imageSkeletonColor}
         showImageError={showImageError}
+        imageCropMode={imageCropMode}
+        imageCropRatio={imageCropRatio}
         onImageTap={onImageTap}
         onLinkTap={onLinkTap}
       />
@@ -457,31 +633,16 @@ export const RnNodeRenderer: React.FC<RnNodeRendererProps> = React.memo(({
   }
 
   // ── 10. Preformatted code block <pre> ────────────────────────────────────
-  // Wrapped in a horizontal ScrollView so long lines can be scrolled without
-  // wrapping, matching the visual behaviour of web code blocks.
   if (node.name === 'pre') {
     return (
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={[
-          styles.preScroll,
-          theme?.codeBgColor ? { backgroundColor: theme.codeBgColor } : undefined,
-          cssToRn(node.styleObj) as any
-        ]}
-        contentContainerStyle={styles.preContent}
-      >
-        <Text
-          style={[
-            styles.preText,
-            theme?.codeTextColor ? { color: theme.codeTextColor } : undefined
-          ]}
-        >
-          {node.children?.map((child) => renderChild(child, undefined, 'pre'))}
-        </Text>
-      </ScrollView>
+      <RnCodeBlock
+        node={node}
+        theme={theme}
+        renderChild={renderChild}
+      />
     );
   }
+
 
   // ── 11. Blockquote ───────────────────────────────────────────────────────
   if (node.name === 'blockquote') {
@@ -658,14 +819,61 @@ const styles = StyleSheet.create({
     height: 1
   },
 
+  preContainer: {
+    marginVertical: 10,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)'
+  },
+
+  preHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)'
+  },
+
+  preHeaderLang: {
+    fontSize: 11,
+    color: '#abb2bf',
+    fontWeight: 'bold'
+  },
+
+  preBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.15)'
+  },
+
+  preBtnText: {
+    fontSize: 11,
+    color: '#ffffff'
+  },
+
+  svgPreviewWrap: {
+    padding: 16,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+
   preScroll: {
     width: '100%'
   },
 
-  preContent: {},
+  preContent: {
+    padding: 12
+  },
 
   preText: {
-    fontFamily: 'Courier New'
+    fontFamily: 'Courier New',
+    fontSize: 13
   },
 
   blockquote: {},
@@ -705,5 +913,10 @@ const styles = StyleSheet.create({
 
   block: {
     maxWidth: '100%'
+  },
+
+  cursor: {
+    marginLeft: 2,
+    fontSize: 14
   }
 });

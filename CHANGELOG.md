@@ -4,6 +4,31 @@ All notable changes to `omni-rich-text` will be documented in this file.
 
 ---
 
+## [0.1.8] - 2026-10-08
+
+### 🤖 AI 场景流式增量解析与打字机动效引擎（AI Streaming & Typewriter Engine）
+
+- **🩹 末端活跃块语法自愈引擎 (`healMarkdownTail` / `isMarkdownIncomplete`)**
+  - **代码围栏未闭合修复**：检测大模型流式输出过程中未闭合的代码块围栏（```` ```` / `~~~`），并在末端安全自愈闭合；代码块未完结时自动 flush 代码缓冲区，无需等待终结符即可实时展示已生成的代码高亮。
+  - **行内标记自愈**：自动检测并修复行尾未闭合的行内代码（`` ` ``）、粗体（`**` / `__`）、斜体（`*` / `_`）、删除线（`~~`）、LaTeX 数学公式（`$$` / `$`）及未完成的链接/图片语法（`[title](url` / `![alt](url`），彻底消除流式打字过程中的全段样式跳跃与闪烁。
+  - **GFM 表格增量自愈**：自动识别并补平流式输出中尚未完成的 Markdown 表格行，支持对齐语法（`:---`, `:---:`, `---:`）。
+
+- **⚡ 增量流式解析器 (`IncrementalStreamParser` / `parseStreamContent`)**
+  - **双层冻结缓存架构**：已闭合的稳定段落与块级结构自动冻结并缓存 AST，新 Token 到达时仅对末端活跃块进行增量自愈与局部解析，将长文流式追加开销从 $O(N^2)$ 降低为常数级增量开销。
+  - **虚拟打字机呼吸光标**：流式过程中在 AST 最深末梢位置动态挂载闪烁光标节点（`omni_stream_cursor_node`），支持自定义光标符号（`cursorChar`，默认 `▍`），流式完结（`finish`）时平滑自动移除。
+
+- **🌐 全平台适配器深度对齐**
+  - **Taro (React)**：新增 `streaming`、`showCursor`、`cursorChar` 属性；流式期间自动旁路批处理切片（chunked）的延迟调度，即时渲染新 Token，注入 `@keyframes omniBlink` 光标呼吸动效。
+  - **UniApp (Vue 3)**：`UniversalRichText.vue` 全面对齐流式属性，提供响应式增量解析与 `:deep(.omni-stream-cursor)` 呼吸样式。
+  - **React Native**：新增 `streaming`、`showCursor`、`cursorChar` 属性，内置基于原生驱动的 `RnStreamCursor`（`useNativeDriver: true`），完全不消耗 JS 线程主循环。
+  - **微信原生小程序**：`omni-rich-text` 组件支持流式解析属性，结合 WXSS 呼吸光标动效。
+
+- **🧪 全量测试套件扩充与质量保证**
+  - 新增 `stream.test.ts`、`uni-adapter.test.ts`、`rn-adapter.test.ts`、`wechat-adapter.test.ts`。
+  - 核心单测总数提升至 **14 个测试套件，149 项单元测试 100% 全部通过**。
+
+---
+
 ## [0.1.7] - 2026-09-30
 
 ### 🎠 微信公众号 SVG 轮播图智能映射与 SVG 源码双模展示（SVG Carousel & Code Block Architecture）

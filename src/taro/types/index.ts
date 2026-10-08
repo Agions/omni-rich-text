@@ -98,6 +98,12 @@ export interface OmniRichTextProps {
   imageCropMode?: 'widthFix' | 'aspectFill' | 'aspectFit' | 'auto';
   /** Global image crop aspect ratio (e.g. 16/9, 4/3, 1) */
   imageCropRatio?: number;
+  /** Enable AI streaming mode with incremental syntax healing. Default: false */
+  streaming?: boolean;
+  /** Whether to show blinking typewriter cursor at tail during streaming. Default: true */
+  showCursor?: boolean;
+  /** Custom cursor character (e.g. '▍', '|', '█'). Default: '▍' */
+  cursorChar?: string;
 }
 
 export type UniversalRichTextProps = OmniRichTextProps;

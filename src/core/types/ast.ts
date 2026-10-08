@@ -66,6 +66,8 @@ export interface ASTNode {
     isSvgCodeBlock?: boolean;
     /** Raw SVG code string for preview rendering */
     rawSvgCode?: string;
+    /** AI streaming typewriter cursor marker */
+    isStreamCursor?: boolean;
   };
 }
 

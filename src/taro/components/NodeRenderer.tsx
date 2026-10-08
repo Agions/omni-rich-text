@@ -125,8 +125,26 @@ const OmniImage: React.FC<{
   const placeholderHeight = node.extra?.placeholderHeight;
   const aspectRatio = node.extra?.aspectRatio;
 
-  const rawWidth = node.styleObj?.width;
-  const isFullWidth = !rawWidth || rawWidth === '100%' || rawWidth.startsWith('100%');
+  const attrWidth = node.attrs.width
+    ? isNaN(Number(node.attrs.width))
+      ? node.attrs.width
+      : `${node.attrs.width}px`
+    : node.attrs['data-w'] && Number(node.attrs['data-w']) < 500
+    ? `${node.attrs['data-w']}px`
+    : undefined;
+
+  const rawHeight = (node.styleObj?.height && node.styleObj?.height !== 'auto')
+    ? node.styleObj.height
+    : (node.attrs.height && !isNaN(Number(node.attrs.height)))
+    ? `${node.attrs.height}px`
+    : undefined;
+
+  const hasExplicitHeight = !!rawHeight;
+  const hasExplicitWidth = (!!node.styleObj?.width && node.styleObj.width !== '100%' && node.styleObj.width !== 'auto') || !!attrWidth;
+  const rawWidth = (node.styleObj?.width && node.styleObj.width !== 'auto') ? node.styleObj.width : attrWidth;
+
+  // An image is truly full-width only if explicitly specified 100%, OR if no width/height is specified
+  const isFullWidth = (rawWidth === '100%' || rawWidth?.startsWith('100%')) || (!hasExplicitWidth && !hasExplicitHeight);
   const displayStyle = node.styleObj?.display || (isFullWidth ? 'block' : 'inline-block');
 
   // Strip height, width, and display from node.styleObj so mode="widthFix" works without conflict
@@ -134,7 +152,6 @@ const OmniImage: React.FC<{
   const {
     height: _ignoreHeight,
     width: _ignoreWidth,
-    maxWidth: _ignoreMaxWidth,
     display: _ignoreDisplay,
     ...cleanImgStyle
   } = rawImgStyle as any;
@@ -198,7 +215,23 @@ const OmniImage: React.FC<{
     (node.attrs.mode as any) ||
     (imageCropMode && imageCropMode !== 'auto' ? imageCropMode : null) ||
     (imageCropRatio ? 'aspectFill' : null) ||
-    (node.styleObj?.height && !isFullWidth ? 'aspectFit' : 'widthFix');
+    (hasExplicitWidth && hasExplicitHeight ? 'aspectFill' : null) ||
+    (hasExplicitHeight && !hasExplicitWidth ? 'heightFix' : 'widthFix');
+
+  // In WeChat Mini Program, mode="widthFix" calculates image height dynamically based on aspect ratio.
+  // Setting inline height (especially 'height: auto') overrides native calculation and collapses height to 0!
+  // Therefore, for widthFix, height must ALWAYS be undefined in style.
+  const effectiveImgHeight = imageCropRatio
+    ? '100%'
+    : effectiveImgMode === 'widthFix'
+    ? undefined
+    : rawHeight;
+
+  const effectiveImgWidth = effectiveImgMode === 'heightFix'
+    ? 'auto'
+    : isFullWidth
+    ? '100%'
+    : (rawWidth || 'auto');
 
   return (
     <View
@@ -207,9 +240,10 @@ const OmniImage: React.FC<{
         position: 'relative',
         display: displayStyle,
         verticalAlign: 'middle',
-        width: node.styleObj?.width || (isFullWidth ? '100%' : undefined),
-        maxWidth: '100%',
-        minWidth: 0,
+        width: effectiveImgMode === 'heightFix' ? 'auto' : (isFullWidth ? '100%' : (rawWidth || undefined)),
+        height: effectiveImgMode === 'heightFix' ? effectiveImgHeight : (hasExplicitWidth && hasExplicitHeight ? effectiveImgHeight : undefined),
+        maxWidth: node.styleObj?.maxWidth || node.styleObj?.['max-width'] || '100%',
+        maxHeight: node.styleObj?.maxHeight || node.styleObj?.['max-height'] || undefined,
         boxSizing: 'border-box',
         overflow: 'hidden',
         borderRadius: node.styleObj?.borderRadius,
@@ -219,10 +253,8 @@ const OmniImage: React.FC<{
         backgroundColor: imageSkeleton && !loaded && !hasError ? imageSkeletonColor : 'transparent',
         ...(imageCropRatio
           ? { aspectRatio: String(imageCropRatio) }
-          : aspectRatio && !loaded
+          : (aspectRatio && isFullWidth && effectiveImgMode === 'widthFix')
           ? { aspectRatio: String(aspectRatio) }
-          : placeholderHeight && !loaded
-          ? { paddingBottom: placeholderHeight, height: 0 }
           : {})
       })}
       onClick={handleTap}
@@ -234,14 +266,14 @@ const OmniImage: React.FC<{
         lazyLoad={node.attrs['lazy-load'] !== 'false'}
         style={toTaroStyle({
           ...cleanImgStyle,
-          width: isFullWidth ? '100%' : (node.styleObj?.width || '100%'),
-          height: imageCropRatio ? '100%' : node.styleObj?.height,
+          width: effectiveImgWidth,
+          height: effectiveImgHeight,
           objectFit: imageCropRatio ? 'cover' : undefined,
-          maxWidth: '100%',
+          maxWidth: node.styleObj?.maxWidth || node.styleObj?.['max-width'] || '100%',
+          maxHeight: node.styleObj?.maxHeight || node.styleObj?.['max-height'] || undefined,
           display: displayStyle === 'inline-block' ? 'inline-block' : 'block',
           boxSizing: 'border-box',
-          opacity: loaded || !imageSkeleton ? 1 : 0,
-          transition: 'opacity 0.25s ease-in-out'
+          opacity: 1
         })}
         onLoad={() => setLoaded(true)}
         onError={() => {
@@ -729,6 +761,8 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
         imageSkeleton={imageSkeleton}
         imageSkeletonColor={theme?.imageSkeletonColor}
         showImageError={showImageError}
+        imageCropMode={imageCropMode}
+        imageCropRatio={imageCropRatio}
         onImageClick={onImageClick}
         onLinkClick={onLinkClick}
         onNodeEvent={onNodeEvent}
@@ -946,15 +980,19 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
   const defaultDisplay = isParentFlex
     ? 'block'
     : (INLINE_TAGS.has(node.name || '') ? 'inline-block' : 'block');
-  const finalDisplay = node.styleObj?.display || defaultDisplay;
+
+  const hasFlexGrow =
+    node.styleObj?.flex ||
+    node.styleObj?.flexGrow ||
+    node.styleObj?.['flex-grow'];
+  const needsMinWidthZero = isFlex || (isParentFlex && !!hasFlexGrow);
 
   return (
     <View
       className={`omni-element omni-${node.name}`}
       style={toTaroStyle({
-        maxWidth: '100%',
         boxSizing: 'border-box',
-        ...(isFlex || isParentFlex ? { minWidth: 0 } : {}),
+        ...(needsMinWidthZero ? { minWidth: 0 } : {}),
         display: defaultDisplay,
         ...node.styleObj
       })}

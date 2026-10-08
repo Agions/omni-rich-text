@@ -6,3 +6,47 @@
   user-select: none;
   -webkit-user-select: none;
 }
+
+.omni-content-inner {
+  position: relative;
+}
+
+.omni-clamp-mask {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+.omni-clamp-action-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.omni-clamp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* ─── AI Streaming Blinking Cursor ─── */
+@keyframes omniBlink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.omni-stream-cursor {
+  display: inline-block;
+  margin-left: 2px;
+  animation: omniBlink 0.9s infinite step-start;
+  vertical-align: baseline;
+  font-weight: bold;
+}

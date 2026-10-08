@@ -1,23 +1,6 @@
 <!--
   omni-node: Universal Rich Text Node Renderer for Native WeChat Mini Program
-  Recursion is achieved by self-referencing the omni-node component declared
-  in usingComponents inside index.json.
-
-  Node shape (from @universal-rt/core ASTNode):
-    node.type        - 'element' | 'text'
-    node.name        - tag name (lowercase), e.g. 'p', 'img', 'a'
-    node.text        - text content (type === 'text' only)
-    node.attrs       - attribute map { [key]: string }
-    node.styleStr    - pre-serialized inline style string
-    node.styleObj    - raw style object (not used in WXML)
-    node.children    - child ASTNode[]
-    node.extra       - platform-specific enrichment data
-      .wxIgnored     - boolean: skip this node entirely
-      .svgDataUri    - data URI for SVG nodes
-      .galleryIndex  - image index in gallery list
-      .bulletText    - pre-computed bullet label for <li>
-      .skeletonStyle - skeleton placeholder style string
-      .linkStyle     - anchor element style string
+  Recursion is achieved by self-referencing via usingComponents in index.json.
 -->
 
 <!-- ① Skip nodes marked as ignored (wx:voice, mp-miniprogram, etc.) -->
@@ -28,9 +11,86 @@
   wx:elif="{{node.type === 'text'}}"
   class="omni-text"
   style="{{node.styleStr}}"
+  bindlongpress="onTextLongPress"
 >{{node.text}}</text>
 
-<!-- ③ SVG element → data URI <image> -->
+<!-- ③-A SVG Carousel / Slider (Native Swiper mapping) -->
+<view
+  wx:elif="{{node.extra.isSvgCarousel && node.extra.carouselSlides && node.extra.carouselSlides.length > 0}}"
+  class="omni-svg-carousel-container"
+  style="width:100%;margin:24rpx 0;border-radius:16rpx;overflow:hidden;position:relative;{{node.styleStr}}"
+>
+  <swiper
+    class="omni-svg-swiper"
+    indicator-dots="{{node.extra.carouselSlides.length > 1}}"
+    indicator-color="rgba(255, 255, 255, 0.45)"
+    indicator-active-color="#ffffff"
+    autoplay="{{false}}"
+    circular="{{node.extra.carouselSlides.length > 1}}"
+    style="width:100%;height:480rpx;aspect-ratio:{{node.extra.aspectRatio || 1.7778}};"
+  >
+    <swiper-item
+      wx:for="{{node.extra.carouselSlides}}"
+      wx:key="index"
+      style="width:100%;height:100%;"
+    >
+      <view
+        style="width:100%;height:100%;position:relative;"
+        catch:tap="onSlideTap"
+        data-src="{{item.src}}"
+        data-href="{{item.href}}"
+      >
+        <image
+          src="{{item.src}}"
+          mode="aspectFill"
+          style="width:100%;height:100%;display:block;"
+        />
+        <view
+          wx:if="{{item.title}}"
+          style="position:absolute;bottom:0;left:0;right:0;padding:12rpx 20rpx;background:linear-gradient(transparent,rgba(0,0,0,0.65));color:#ffffff;font-size:24rpx;"
+        >
+          <text>{{item.title}}</text>
+        </view>
+      </view>
+    </swiper-item>
+  </swiper>
+</view>
+
+<!-- ③-B SVG with ForeignObject (Dual-layer decoupling) -->
+<view
+  wx:elif="{{node.name === 'svg' && node.extra.hasForeignObject}}"
+  class="omni-svg-layout-wrap"
+  style="position:relative;display:{{node.styleObj.display || 'block'}};width:{{node.styleObj.width || '100%'}};max-width:100%;box-sizing:border-box;{{node.extra.aspectRatio ? 'aspect-ratio:' + node.extra.aspectRatio + ';' : ''}}{{node.styleStr}}"
+>
+  <image
+    wx:if="{{node.extra.bgSvgDataUri}}"
+    class="omni-svg-layout-bg"
+    src="{{node.extra.bgSvgDataUri}}"
+    mode="scaleToFill"
+    style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"
+  />
+  <view
+    class="omni-svg-layout-content"
+    style="position:relative;z-index:1;width:100%;height:100%;box-sizing:border-box;"
+  >
+    <omni-node
+      wx:for="{{node.extra.foreignObjectNodes}}"
+      wx:key="id"
+      node="{{item}}"
+      theme="{{theme}}"
+      imageCropMode="{{imageCropMode}}"
+      imageCropRatio="{{imageCropRatio}}"
+      parentLinkHref="{{parentLinkHref}}"
+      imageLinkAction="{{imageLinkAction}}"
+      showImageError="{{showImageError}}"
+      bind:linkTap="onChildLinkTap"
+      bind:imageTap="onChildImageTap"
+      bind:longPressText="onChildLongPressText"
+    />
+  </view>
+</view>
+
+<!-- ③-C Standard Vector SVG -->
 <image
   wx:elif="{{node.name === 'svg'}}"
   class="omni-svg"
@@ -52,6 +112,8 @@
     wx:key="id"
     node="{{item}}"
     theme="{{theme}}"
+    imageCropMode="{{imageCropMode}}"
+    imageCropRatio="{{imageCropRatio}}"
     parentLinkHref="{{node.attrs.href}}"
     imageLinkAction="{{imageLinkAction}}"
     showImageError="{{showImageError}}"
@@ -81,12 +143,12 @@
   </view>
 </block>
 
-<!-- ⑤-B Regular Image <img> with skeleton placeholder -->
+<!-- ⑤-B Regular Image <img> with smart sizing -->
 <block wx:elif="{{node.name === 'img'}}">
   <view
     wx:if="{{!hasError}}"
     class="omni-image-skeleton"
-    style="display:{{(node.styleObj.width && node.styleObj.width !== '100%') ? 'inline-block' : 'block'}};max-width:100%;min-width:0;box-sizing:border-box;vertical-align:middle;width:{{node.styleObj.width || '100%'}};{{node.extra.skeletonStyle}}"
+    style="display:{{effectiveImgMode === 'heightFix' ? 'inline-block' : (isFullWidth ? 'block' : 'inline-block')}};max-width:100%;min-width:0;box-sizing:border-box;vertical-align:middle;width:{{effectiveImgWidth}};{{effectiveImgHeight ? 'height:' + effectiveImgHeight + ';' : ''}}{{node.extra.skeletonStyle}}"
     catch:tap="onImageTap"
     data-src="{{node.attrs.src || node.attrs['data-src']}}"
     data-gallery-index="{{node.extra.galleryIndex}}"
@@ -94,11 +156,18 @@
     <image
       class="omni-image"
       src="{{node.attrs.src || node.attrs['data-src']}}"
-      mode="{{node.attrs.mode || 'widthFix'}}"
+      mode="{{effectiveImgMode}}"
       lazy-load="{{true}}"
       binderror="onImageError"
-      style="width:100%;max-width:100%;display:block;"
+      style="width:{{effectiveImgWidth}};max-width:100%;{{effectiveImgHeight ? 'height:' + effectiveImgHeight + ';' : ''}}display:block;"
     />
+  </view>
+  <view
+    wx:elif="{{hasError && showImageError}}"
+    class="omni-image-error"
+    style="display:flex;align-items:center;justify-content:center;padding:48rpx 24rpx;background-color:#f8fafc;color:#94a3b8;font-size:24rpx;border-radius:8rpx;border:1rpx dashed #cbd5e1;min-height:160rpx;text-align:center;"
+  >
+    <text>{{node.attrs.alt ? '[图片加载失败: ' + node.attrs.alt + ']' : '🖼️ 图片加载失败'}}</text>
   </view>
 </block>
 
@@ -122,28 +191,71 @@
   style="{{theme.hrColor ? 'background-color:' + theme.hrColor + ';' : ''}}{{node.styleStr}}"
 />
 
-<!-- ⑧ Preformatted Code <pre> with horizontal scroll -->
-<scroll-view
+<!-- ⑧ Preformatted Code <pre> with Header Bar & SVG Dual-Mode -->
+<view
   wx:elif="{{node.name === 'pre'}}"
-  class="omni-pre-scroll"
-  scroll-x="{{true}}"
-  style="{{theme.codeBgColor ? 'background-color:' + theme.codeBgColor + ';' : ''}}{{node.styleStr}}"
+  class="omni-pre-container"
+  style="margin:24rpx 0;border-radius:16rpx;overflow:hidden;border:1rpx solid rgba(0,0,0,0.08);background-color:{{theme.codeBgColor || '#282c34'}};{{node.styleStr}}"
 >
-  <view class="omni-pre" style="{{theme.codeTextColor ? 'color:' + theme.codeTextColor + ';' : ''}}{{node.styleStr}}">
-    <omni-node
-      wx:for="{{node.children}}"
-      wx:key="id"
-      node="{{item}}"
-      theme="{{theme}}"
-      parentLinkHref="{{parentLinkHref}}"
-      imageLinkAction="{{imageLinkAction}}"
-      showImageError="{{showImageError}}"
-      bind:linkTap="onChildLinkTap"
-      bind:imageTap="onChildImageTap"
-      bind:longPressText="onChildLongPressText"
+  <view
+    class="omni-pre-header"
+    style="display:flex;flex-direction:row;justify-content:space-between;align-items:center;padding:12rpx 24rpx;background-color:rgba(0,0,0,0.25);border-bottom:1rpx solid rgba(255,255,255,0.06);"
+  >
+    <text style="font-size:22rpx;color:#abb2bf;font-weight:bold;">{{node.extra.isSvgCodeBlock ? '🎨 XML / SVG' : (node.extra.lang || 'CODE')}}</text>
+    <view style="display:flex;flex-direction:row;align-items:center;">
+      <view
+        wx:if="{{node.extra.isSvgCodeBlock && node.extra.rawSvgCode}}"
+        catch:tap="onToggleSvgPreview"
+        style="font-size:22rpx;padding:4rpx 16rpx;border-radius:8rpx;background-color:{{showSvgPreview ? '#07c160' : 'rgba(255,255,255,0.15)'}};color:#ffffff;margin-right:12rpx;"
+      >
+        <text>{{showSvgPreview ? '💻 源码' : '👁️ 预览'}}</text>
+      </view>
+      <view
+        catch:tap="onCopyCode"
+        style="font-size:22rpx;padding:4rpx 16rpx;border-radius:8rpx;background-color:rgba(255,255,255,0.15);color:#ffffff;"
+      >
+        <text>📋 复制</text>
+      </view>
+    </view>
+  </view>
+
+  <view
+    wx:if="{{showSvgPreview && node.extra.svgCodeDataUri}}"
+    style="padding:32rpx;background-color:#ffffff;display:flex;justify-content:center;align-items:center;"
+  >
+    <image
+      src="{{node.extra.svgCodeDataUri}}"
+      mode="widthFix"
+      style="max-width:100%;display:block;"
     />
   </view>
-</scroll-view>
+  <scroll-view
+    wx:else
+    class="omni-pre-scroll"
+    scroll-x="{{true}}"
+    style="width:100%;box-sizing:border-box;background-color:{{theme.codeBgColor || '#282c34'}};"
+  >
+    <view
+      class="omni-pre"
+      style="color:{{theme.codeTextColor || '#abb2bf'}};min-width:100%;padding:24rpx 28rpx;box-sizing:border-box;font-family:Consolas,Monaco,monospace;font-size:26rpx;{{node.styleStr}}"
+    >
+      <omni-node
+        wx:for="{{node.children}}"
+        wx:key="id"
+        node="{{item}}"
+        theme="{{theme}}"
+        imageCropMode="{{imageCropMode}}"
+        imageCropRatio="{{imageCropRatio}}"
+        parentLinkHref="{{parentLinkHref}}"
+        imageLinkAction="{{imageLinkAction}}"
+        showImageError="{{showImageError}}"
+        bind:linkTap="onChildLinkTap"
+        bind:imageTap="onChildImageTap"
+        bind:longPressText="onChildLongPressText"
+      />
+    </view>
+  </scroll-view>
+</view>
 
 <!-- ⑨ Blockquote <blockquote> -->
 <view
@@ -156,6 +268,8 @@
     wx:key="id"
     node="{{item}}"
     theme="{{theme}}"
+    imageCropMode="{{imageCropMode}}"
+    imageCropRatio="{{imageCropRatio}}"
     parentLinkHref="{{parentLinkHref}}"
     imageLinkAction="{{imageLinkAction}}"
     showImageError="{{showImageError}}"
@@ -177,6 +291,8 @@
       wx:key="id"
       node="{{item}}"
       theme="{{theme}}"
+      imageCropMode="{{imageCropMode}}"
+      imageCropRatio="{{imageCropRatio}}"
       parentLinkHref="{{parentLinkHref}}"
       imageLinkAction="{{imageLinkAction}}"
       showImageError="{{showImageError}}"
@@ -197,6 +313,8 @@
     wx:key="id"
     node="{{item}}"
     theme="{{theme}}"
+    imageCropMode="{{imageCropMode}}"
+    imageCropRatio="{{imageCropRatio}}"
     parentLinkHref="{{parentLinkHref}}"
     imageLinkAction="{{imageLinkAction}}"
     showImageError="{{showImageError}}"
@@ -217,6 +335,8 @@
     wx:key="id"
     node="{{item}}"
     theme="{{theme}}"
+    imageCropMode="{{imageCropMode}}"
+    imageCropRatio="{{imageCropRatio}}"
     parentLinkHref="{{parentLinkHref}}"
     imageLinkAction="{{imageLinkAction}}"
     showImageError="{{showImageError}}"
@@ -226,19 +346,20 @@
   />
 </view>
 
-<!-- ⑬ List Item <li> -->
+<!-- ⑬ List item <li> -->
 <view
   wx:elif="{{node.name === 'li'}}"
   class="omni-li"
-  style="{{node.styleStr}}"
 >
-  <text class="omni-li-bullet" style="{{theme.bulletColor ? 'color:' + theme.bulletColor + ';' : ''}}">{{node.extra.bulletText}}</text>
+  <text class="omni-li-bullet" style="{{theme.bulletColor ? 'color:' + theme.bulletColor + ';' : ''}}">{{node.extra.bulletText || '• '}}</text>
   <view class="omni-li-content">
     <omni-node
       wx:for="{{node.children}}"
       wx:key="id"
       node="{{item}}"
       theme="{{theme}}"
+      imageCropMode="{{imageCropMode}}"
+      imageCropRatio="{{imageCropRatio}}"
       parentLinkHref="{{parentLinkHref}}"
       imageLinkAction="{{imageLinkAction}}"
       showImageError="{{showImageError}}"
@@ -249,14 +370,14 @@
   </view>
 </view>
 
-<!-- ⑭ Line Break <br> -->
+<!-- ⑭ Line break <br> -->
 <text wx:elif="{{node.name === 'br'}}" class="omni-br">\n</text>
 
-<!-- ⑮ Generic block / inline element (div, p, section, span, ul, ol, h1-h6, etc.) -->
+<!-- ⑮ Generic block / inline element -->
 <view
   wx:else
   class="omni-element omni-{{node.name}}"
-  style="display:{{node.styleObj.display || (parentIsFlex || node.extra.parentIsFlex ? 'block' : (node.extra.isInlineTag ? 'inline-block' : 'block'))}};{{(node.styleObj.display === 'flex' || node.styleObj.display === 'inline-flex' || parentIsFlex || node.extra.parentIsFlex) ? 'min-width:0;' : ''}}{{node.styleStr}}"
+  style="{{node.styleStr}}"
   catch:tap="onNodeTap"
 >
   <omni-node
@@ -264,9 +385,10 @@
     wx:key="id"
     node="{{item}}"
     theme="{{theme}}"
-    index-in-list="{{index}}"
-    parent-tag="{{node.name}}"
-    parentIsFlex="{{node.styleObj.display === 'flex' || node.styleObj.display === 'inline-flex' || node.styleObj.display === '-webkit-flex' || node.styleObj.display === '-webkit-box'}}"
+    imageCropMode="{{imageCropMode}}"
+    imageCropRatio="{{imageCropRatio}}"
+    indexInList="{{index}}"
+    parentTag="{{node.name}}"
     parentLinkHref="{{parentLinkHref}}"
     imageLinkAction="{{imageLinkAction}}"
     showImageError="{{showImageError}}"

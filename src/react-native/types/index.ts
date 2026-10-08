@@ -1,6 +1,7 @@
+import type * as React from 'react';
 import { ASTNode, LinkTapContext, MediaEventPayload, ThemeConfig, TruncateOptions } from '../../core';
 
-export type { ThemeConfig, TruncateOptions };
+export type { ThemeConfig, TruncateOptions, ASTNode, LinkTapContext, MediaEventPayload };
 
 export interface OmniRichTextProps {
   /** Rich text content (HTML or Markdown string) */
@@ -76,16 +77,19 @@ export interface OmniRichTextProps {
    *
    * This is the recommended way to integrate custom video / audio players
    * since React Native has no standard <video> component.
-   *
-   * @example
-   * customRender={(node) => {
-   *   if (node.name === 'video') {
-   *     return <Video source={{ uri: node.attrs.src }} style={{ width: '100%', height: 220 }} />;
-   *   }
-   *   return null;
-   * }}
    */
   customRender?: (node: ASTNode) => React.ReactNode | null;
+
+  /** Custom components map: tag name -> React Component */
+  components?: Record<
+    string,
+    React.ComponentType<{
+      node: ASTNode;
+      attrs: Record<string, string>;
+      children?: React.ReactNode;
+      [key: string]: any;
+    }>
+  >;
 
   /** Declared internal TabBar route list used for smart link navigation */
   tabBarList?: string[];
@@ -107,20 +111,46 @@ export interface OmniRichTextProps {
 
   /** Called for video / audio playback events when using a custom player via customRender */
   onMediaEvent?: (payload: MediaEventPayload) => void;
+
+  /** Generic node event hook for custom events */
+  onNodeEvent?: (eventType: string, node: ASTNode, rawEvent?: any) => void;
+
   /** Safe AST truncation options for generating excerpts and clamping node size */
   truncate?: TruncateOptions;
+
   /** Quick alias for truncate.maxLength (number of characters) */
   truncateLength?: number;
+
   /** Max height threshold for visual container clamping with expand/collapse (e.g. 240) */
   clampMaxHeight?: number;
+
   /** Text for expand button. Defaults to '展开全文' */
   expandText?: string;
+
   /** Text for collapse button. Defaults to '收起' */
   collapseText?: string;
+
   /** Whether to show collapse button after expanding. Defaults to true */
   showCollapse?: boolean;
+
   /** Callback emitted when expanded state changes */
   onExpandChange?: (expanded: boolean) => void;
+
+  /** Global image crop mode override: 'widthFix' | 'aspectFill' | 'aspectFit' | 'auto' */
+  imageCropMode?: 'widthFix' | 'aspectFill' | 'aspectFit' | 'auto';
+
+  /** Global image crop aspect ratio (e.g. 16/9, 4/3, 1) */
+  imageCropRatio?: number;
+
+  /** Enable AI streaming mode with incremental syntax healing. Default: false */
+  streaming?: boolean;
+
+  /** Whether to show blinking typewriter cursor at tail during streaming. Default: true */
+  showCursor?: boolean;
+
+  /** Custom cursor character (e.g. '▍', '|', '█'). Default: '▍' */
+  cursorChar?: string;
 }
 
 export type UniversalRichTextProps = OmniRichTextProps;
+

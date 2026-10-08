@@ -7,7 +7,7 @@ Component({
     virtualHost: true
   },
   properties: {
-    /** The AST node object produced by @universal-rt/core parseRichContent */
+    /** The AST node object produced by omni-rich-text/core parseRichContent */
     node: {
       type: Object,
       value: {},

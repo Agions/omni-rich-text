@@ -1,7 +1,7 @@
 export const HTML_DEMO = `
 <div class="article-container">
   <h1>🌟 跨端富文本组件深度实测</h1>
-  <p>这是一篇用于测试 <strong>@universal-rt</strong> 组件在 <em>UniApp 与 Taro</em> 下渲染一致性的综合案例文章。</p>
+  <p>这是一篇用于测试 <strong>omni-rich-text</strong> 组件在 <em>UniApp 与 Taro</em> 下渲染一致性的综合案例文章。</p>
   
   <blockquote>
     <p>💡 提示：本组件已彻底接管全部 DOM 节点，点击任意链接或图片均可触发完整的生命周期拦截。</p>
@@ -52,7 +52,7 @@ export const HTML_DEMO = `
   </table>
 
   <h2>4. 语法高亮代码块</h2>
-  <pre><code class="language-typescript">import { UniversalRichText } from '@universal-rt/taro';
+  <pre><code class="language-typescript">import { UniversalRichText } from 'omni-rich-text/taro';
 
 // 渲染跨端富文本
 export function MyArticle() {

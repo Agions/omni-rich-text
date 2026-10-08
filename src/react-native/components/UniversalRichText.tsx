@@ -16,7 +16,7 @@ import { RnNodeRenderer } from './RnNodeRenderer';
 /**
  * Top-level React Native rich-text component.
  *
- * Parses the `content` string into an AST via `@universal-rt/core`, then
+ * Parses the `content` string into an AST via `omni-rich-text/core`, then
  * progressively streams root-level blocks into the render tree using React
  * state (chunked rendering) to avoid blocking the JS thread on large articles.
  *

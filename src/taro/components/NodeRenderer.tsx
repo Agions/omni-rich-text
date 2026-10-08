@@ -870,19 +870,47 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
       <ScrollView
         scrollX
         className="omni-table-scroll"
-        style={toTaroStyle(node.styleObj)}
+        style={toTaroStyle({
+          width: '100%',
+          maxWidth: '100%',
+          overflowX: 'auto',
+          margin: node.styleObj?.margin
+        })}
       >
         <View
           className="omni-table"
           style={toTaroStyle({
             display: 'table',
-            width: '100%',
-            ...node.styleObj
+            minWidth: '100%',
+            borderCollapse: 'collapse',
+            boxSizing: 'border-box',
+            ...node.styleObj,
+            margin: undefined // Outer margin belongs to the ScrollView container
           })}
         >
           {node.children?.map((child) => renderChild(child, undefined, 'table'))}
         </View>
       </ScrollView>
+    );
+  }
+
+  // 12.1 Table Header Group <thead>, Body Group <tbody>, Footer Group <tfoot>
+  if (node.name === 'thead' || node.name === 'tbody' || node.name === 'tfoot') {
+    const displayMap: Record<string, string> = {
+      thead: 'table-header-group',
+      tbody: 'table-row-group',
+      tfoot: 'table-footer-group'
+    };
+    return (
+      <View
+        className={`omni-${node.name}`}
+        style={toTaroStyle({
+          display: displayMap[node.name] || 'table-row-group',
+          ...node.styleObj
+        })}
+      >
+        {node.children?.map((child) => renderChild(child, undefined, node.name))}
+      </View>
     );
   }
 
@@ -893,6 +921,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
         className="omni-tr"
         style={toTaroStyle({
           display: 'table-row',
+          verticalAlign: 'inherit',
           ...node.styleObj
         })}
       >
@@ -909,6 +938,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = React.memo(({
         className={`omni-${node.name}`}
         style={toTaroStyle({
           display: 'table-cell',
+          verticalAlign: 'middle',
           border: theme?.tableBorderColor ? `1px solid ${theme.tableBorderColor}` : undefined,
           backgroundColor: isHeader ? theme?.tableHeaderBgColor : undefined,
           ...node.styleObj

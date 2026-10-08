@@ -10,9 +10,7 @@ export default defineConfig({
       '@tarojs/taro': path.resolve(__dirname, 'src/taro-api-mock.ts'),
       'omni-rich-text/core': path.resolve(__dirname, '../../src/core/index.ts'),
       'omni-rich-text/taro': path.resolve(__dirname, '../../src/taro/index.ts'),
-      'omni-rich-text': path.resolve(__dirname, '../../src/core/index.ts'),
-      '@universal-rt/core': path.resolve(__dirname, '../../src/core/index.ts'),
-      '@universal-rt/taro': path.resolve(__dirname, '../../src/taro/index.ts')
+      'omni-rich-text': path.resolve(__dirname, '../../src/core/index.ts')
     }
   },
   server: {

@@ -35,6 +35,12 @@ export function getDefaultDisplay(tagName: string, parentIsFlex?: boolean): stri
   if (tag === 'img' || tag === 'svg' || tag === 'video' || tag === 'canvas') {
     return 'inline-block';
   }
+  if (tag === 'table') return 'table';
+  if (tag === 'thead') return 'table-header-group';
+  if (tag === 'tbody') return 'table-row-group';
+  if (tag === 'tfoot') return 'table-footer-group';
+  if (tag === 'tr') return 'table-row';
+  if (tag === 'th' || tag === 'td') return 'table-cell';
   return 'block';
 }
 

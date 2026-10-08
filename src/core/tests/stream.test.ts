@@ -58,10 +58,10 @@ describe('Markdown Tail Syntax Healer (healMarkdownTail)', () => {
   });
 
   it('should heal unclosed inline code backtick', () => {
-    const unclosed = 'Please install `@universal-rt/core';
+    const unclosed = 'Please install `omni-rich-text/core';
     expect(isMarkdownIncomplete(unclosed)).toBe(true);
     const healed = healMarkdownTail(unclosed);
-    expect(healed).toBe('Please install `@universal-rt/core`');
+    expect(healed).toBe('Please install `omni-rich-text/core`');
   });
 
   it('should heal unclosed bold (**) and italic (*)', () => {
@@ -80,9 +80,9 @@ describe('Markdown Tail Syntax Healer (healMarkdownTail)', () => {
   });
 
   it('should heal unclosed links and images', () => {
-    const unclosedLink = 'Check out [our documentation](https://github.com/universal-rt';
+    const unclosedLink = 'Check out [our documentation](https://github.com/Agions/omni-rich-text';
     expect(healMarkdownTail(unclosedLink)).toBe(
-      'Check out [our documentation](https://github.com/universal-rt)'
+      'Check out [our documentation](https://github.com/Agions/omni-rich-text)'
     );
 
     const unclosedImg = '![Logo](https://example.com/logo.png';

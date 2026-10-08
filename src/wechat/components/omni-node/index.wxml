@@ -303,10 +303,33 @@
   </view>
 </scroll-view>
 
+<!-- ⑩.1 Table Header Group <thead>, Body Group <tbody>, Footer Group <tfoot> -->
+<view
+  wx:elif="{{node.name === 'thead' || node.name === 'tbody' || node.name === 'tfoot'}}"
+  class="omni-{{node.name}}"
+  style="display:{{node.name === 'thead' ? 'table-header-group' : (node.name === 'tfoot' ? 'table-footer-group' : 'table-row-group')}};{{node.styleStr}}"
+>
+  <omni-node
+    wx:for="{{node.children}}"
+    wx:key="id"
+    node="{{item}}"
+    theme="{{theme}}"
+    imageCropMode="{{imageCropMode}}"
+    imageCropRatio="{{imageCropRatio}}"
+    parentLinkHref="{{parentLinkHref}}"
+    imageLinkAction="{{imageLinkAction}}"
+    showImageError="{{showImageError}}"
+    bind:linkTap="onChildLinkTap"
+    bind:imageTap="onChildImageTap"
+    bind:longPressText="onChildLongPressText"
+  />
+</view>
+
 <!-- ⑪ Table Row <tr> -->
 <view
   wx:elif="{{node.name === 'tr'}}"
   class="omni-tr"
+  style="{{node.styleStr}}"
 >
   <omni-node
     wx:for="{{node.children}}"

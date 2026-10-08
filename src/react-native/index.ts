@@ -1,7 +1,7 @@
 /**
- * @universal-rt/rn
+ * omni-rich-text/react-native
  *
- * React Native adapter for Universal Rich Text.
+ * React Native adapter for Omni Rich Text.
  * Renders HTML / Markdown AST nodes using native RN primitives.
  */
 

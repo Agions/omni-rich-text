@@ -55,9 +55,12 @@
 .omni-li-content { flex: 1; }
 
 .omni-table-scroll { width: 100%; overflow: scroll; box-sizing: border-box; }
-.omni-table { width: 100%; }
-.omni-tr { display: flex; flex-direction: row; }
-.omni-th, .omni-td { flex: 1; }
+.omni-table { width: 100%; min-width: 100%; display: table; border-collapse: collapse; box-sizing: border-box; }
+.omni-thead { display: table-header-group; }
+.omni-tbody { display: table-row-group; }
+.omni-tfoot { display: table-footer-group; }
+.omni-tr { display: table-row; }
+.omni-th, .omni-td { display: table-cell; vertical-align: middle; box-sizing: border-box; }
 
 .omni-element { box-sizing: border-box; max-width: 100%; }
 

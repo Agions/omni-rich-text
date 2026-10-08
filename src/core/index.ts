@@ -1,5 +1,5 @@
 /**
- * @universal-rt/core Entry Point
+ * omni-rich-text/core Entry Point
  */
 
 import { ASTNode, ParseOptions, ParseResult, TruncateOptions, TruncateResult } from './types/ast';

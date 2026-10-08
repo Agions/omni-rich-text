@@ -65,7 +65,7 @@ export const LONG_ARTICLE_SAMPLE = `
                 <th style="padding: 10px; border: 1px solid #cbd5e1;">方案维度</th>
                 <th style="padding: 10px; border: 1px solid #cbd5e1;">原生 rich-text</th>
                 <th style="padding: 10px; border: 1px solid #cbd5e1;">Webview 容器</th>
-                <th style="padding: 10px; border: 1px solid #cbd5e1; background-color: #eff6ff; color: #1d4ed8;">@universal-rt (本方案)</th>
+                <th style="padding: 10px; border: 1px solid #cbd5e1; background-color: #eff6ff; color: #1d4ed8;">omni-rich-text (本方案)</th>
               </tr>
             </thead>
             <tbody>

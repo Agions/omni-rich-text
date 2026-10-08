@@ -384,9 +384,22 @@
     v-else-if="node.name === 'table'"
     class="omni-table-scroll"
     scroll-x
-    :style="node.styleObj"
+    :style="{
+      width: '100%',
+      maxWidth: '100%',
+      overflowX: 'auto',
+      margin: node.styleObj?.margin
+    }"
   >
-    <view class="omni-table" :style="[{ display: 'table', width: '100%' }, node.styleObj]">
+    <view
+      class="omni-table"
+      :style="[{
+        display: 'table',
+        minWidth: '100%',
+        borderCollapse: 'collapse',
+        boxSizing: 'border-box'
+      }, node.styleObj]"
+    >
       <uni-node-renderer
         v-for="child in node.children"
         :key="child.id"
@@ -398,11 +411,29 @@
     </view>
   </scroll-view>
 
+  <!-- Table Header Group / Body Group / Footer Group -->
+  <view
+    v-else-if="node.name === 'thead' || node.name === 'tbody' || node.name === 'tfoot'"
+    :class="`omni-${node.name}`"
+    :style="[{
+      display: node.name === 'thead' ? 'table-header-group' : (node.name === 'tfoot' ? 'table-footer-group' : 'table-row-group')
+    }, node.styleObj]"
+  >
+    <uni-node-renderer
+      v-for="child in node.children"
+      :key="child.id"
+      :node="child"
+      :parent-tag="node.name"
+      v-bind="forwardProps"
+      v-bind="forwardEvents"
+    />
+  </view>
+
   <!-- Table row <tr> -->
   <view
     v-else-if="node.name === 'tr'"
     class="omni-tr"
-    :style="[{ display: 'table-row' }, node.styleObj]"
+    :style="[{ display: 'table-row', verticalAlign: 'inherit' }, node.styleObj]"
   >
     <uni-node-renderer
       v-for="child in node.children"
@@ -420,6 +451,7 @@
     :class="`omni-${node.name}`"
     :style="[{
       display: 'table-cell',
+      verticalAlign: 'middle',
       border: theme.tableBorderColor ? `1px solid ${theme.tableBorderColor}` : undefined,
       backgroundColor: node.name === 'th' ? theme.tableHeaderBgColor : undefined
     }, node.styleObj]"
